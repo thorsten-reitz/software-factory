@@ -24,7 +24,7 @@ Interview the user until you reach a **complete shared understanding**:
 3. Talk to the user in the language they write in. Everything you write into the project follows the **project language** (next section).
 4. **Find the factory repo.** This skill is a symlink into the Software Factory repo. Resolve it: `FACTORY_REPO="$(cd "$(dirname "$(realpath ~/.claude/skills/init/SKILL.md)")/../.." && pwd)"` and check that `$FACTORY_REPO/conventions/README.md` exists. Read that guide completely: it is the basis for the Operations section. If it cannot be found, ask the user for the path of their Software Factory checkout.
    Below, `conventions/…` always means `$FACTORY_REPO/conventions/…`.
-5. **Pipeline templates** come from the public repo `thorsten-reitz/factory-pipelines` at the pinned version **`v0.1.1`** (`PIPELINES_VERSION`). Fetch a template with `gh api -H "Accept: application/vnd.github.raw" "repos/thorsten-reitz/factory-pipelines/contents/<path>?ref=v0.1.1"`.
+5. **Pipeline templates** come from the public repo `thorsten-reitz/factory-pipelines` at the pinned version **`v0.2.0`** (`PIPELINES_VERSION`). Fetch a template with `gh api -H "Accept: application/vnd.github.raw" "repos/thorsten-reitz/factory-pipelines/contents/<path>?ref=v0.2.0"`.
 
 ## Mandatory First Question: Project Language
 The project language decides what language the factory writes in for this project: PRD and all other documents, specs, issue comments, pull requests and the text of commit messages.
@@ -65,10 +65,10 @@ Work through these topics in this order. Each topic may take more than one quest
 1. **Environments and placement.** Recommend: test only in CI, staging on the factory server, production on its own VM. Ask for the domains of staging and production, and which hosts (factory server or own VM, provider). Production on the factory server is allowed; then tell the user that it shares resources with the agent runs and that an outage of the server hits factory, monitoring and production at once. Assign each environment a port on `127.0.0.1` of its host (unique per host, 5100–5999; ask which ports are already taken on the factory server). Provisioning: `cloud-init` (default) or `opentofu`.
 2. **Orchestration tier**, with the criteria table from the guide:
    - `compose` (default): one host per environment, up to about 5 services, a few seconds of downtime per deploy are acceptable.
-   - `kamal`: one to a few hosts, deploys without interruption required.
+   - `kamal`: like `compose` (one host per environment, up to about 5 services), but deploys without interruption are required. Uses only kamal-proxy, not the Kamal CLI: same `deploy/compose.yml`, no extra project files, only `"tier": "kamal"` differs. The proxy costs about 20 MB RAM per app and environment. Switching from `compose` later is one line; the first deploy after the switch has one short interruption.
    - `k3s` (+ Helm + Argo CD): from about 6–8 services, several nodes, self-healing or scaling needed, Kubernetes ecosystem jobs/operators, or the customer requires Kubernetes. Never on the factory server.
    - Managed Kubernetes: only documented (multi-zone HA, compliance). No templates.
-   - When in doubt, the simpler tier. factory-pipelines v0.1 only deploys `compose`; if the project needs another tier, recommend `compose` for now and record the target tier with its reason.
+   - When in doubt, the simpler tier. factory-pipelines v0.2.0 deploys `compose` and `kamal`; `k3s` follows with v0.3. If the project needs `k3s`, recommend `compose` or `kamal` for now and record the target tier with its reason.
    - **Capacity check** whenever an environment goes onto the factory server. Ask for the server's RAM (default 16 GB), `maxParallel` (default 2) and what else runs there, then show the calculation:
      `free = RAM − maxParallel × 3 GB (agent runs) − 1.5 GB (observability) − 1 GB (system, runner, Caddy) − 0.5 GB per open preview − memory limits of environments already there`.
      An environment needs the sum of its memory limits (template: app 768 MB + Postgres 512 MB ≈ 1.3 GB). With less than 1 GB left over, recommend its own VM. Example for the default server: 16 − 6 − 1.5 − 1 = 7.5 GB free.
@@ -118,7 +118,7 @@ After the documents are approved:
        "typecheck": "npx tsc --noEmit",
        "test": "npm test",
        "build": "npm run build",
-       "delivery-config": "check-jsonschema --schemafile https://raw.githubusercontent.com/thorsten-reitz/factory-pipelines/v0.1.1/schema/delivery.schema.json .factory/delivery.json",
+       "delivery-config": "check-jsonschema --schemafile https://raw.githubusercontent.com/thorsten-reitz/factory-pipelines/v0.2.0/schema/delivery.schema.json .factory/delivery.json",
        "workflows": "actionlint"
      }
    }
@@ -130,7 +130,7 @@ After the documents are approved:
    - `environments` gets **only `test`** for now. `staging` and `production` are added by PROJ-4 and PROJ-5 once host and secrets exist; otherwise the first push to `main` would try to deploy. The planned domains, ports and hosts are in `docs/operations.md`.
    - No state → `"state": []` and `"backup": { "enabled": false }`.
    - Keep `$schema`. Validate: `check-jsonschema --schemafile <URL from the check> .factory/delivery.json`.
-4. **Write the caller workflow `.github/workflows/delivery.yml`** from the template `templates/delivery.yml` of factory-pipelines `v0.1.1` (it calls `thorsten-reitz/factory-pipelines/.github/workflows/delivery.yml@v0.1.1` with `config: .factory/delivery.json`). Change one thing: under `on:` keep only `workflow_dispatch` (with its inputs) and add the comment `# pull_request and push are enabled by PROJ-2 (CI)` in the project language. Without a Dockerfile and test environment every PR would fail; PROJ-2 builds them and switches the triggers on in its own PR.
+4. **Write the caller workflow `.github/workflows/delivery.yml`** from the template `templates/delivery.yml` of factory-pipelines `v0.2.0` (it calls `thorsten-reitz/factory-pipelines/.github/workflows/delivery.yml@v0.2.0` with `config: .factory/delivery.json`). Change one thing: under `on:` keep only `workflow_dispatch` (with its inputs) and add the comment `# pull_request and push are enabled by PROJ-2 (CI)` in the project language. Without a Dockerfile and test environment every PR would fail; PROJ-2 builds them and switches the triggers on in its own PR.
 5. **Write `.github/CODEOWNERS`** from the template `templates/CODEOWNERS`, with `@OWNER` replaced by the user's GitHub login (`gh api user --jq .login`). It covers `/.github/`, `/.factory/delivery.json` and `/deploy/`.
 6. **Run every check once locally** and fix until all pass, including `delivery-config` and `workflows`.
 7. **Runtime not covered by the factory?** The factory job image has Node and Python (uv). For anything else (PHP, Ruby, Go, Java …) create `.factory/Dockerfile`:

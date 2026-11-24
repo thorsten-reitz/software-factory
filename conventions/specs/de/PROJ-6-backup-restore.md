@@ -25,7 +25,7 @@
 
 ## Akzeptanzkriterien
 - [ ] AK-1: Angenommen das Repo, dann enthält `.factory/delivery.json` unter `state` jeden Zustand des Projekts ({{STATE}}), `backup.enabled: true`, `backup.schedule: "daily"`, `backup.retention` 7/4/12 (oder eine in `docs/operations.md` begründete Abweichung) und `backup.restoreTest: "weekly"`, und der Check `delivery-config` ist grün.
-<!-- nur wenn: tier compose -->
+<!-- nur wenn: tier compose oder kamal -->
 - [ ] AK-2: Angenommen `deploy/compose.yml`, dann steht jedes benannte Volume mit Zustand in `state`, und jedes Volume ohne Zustand (z. B. Cache) ist in `docs/operations.md` begründet ausgenommen.
 - [ ] AK-3: Angenommen `docs/operations.md`, dann enthält der Abschnitt „Runbooks“ Restore auf Abruf (Actions → delivery → `restore`), Wiederanlauf auf einem neuen Host (cloud-init → Deploy → Restore) und die Empfehlung einer Übung pro Quartal, und der Abschnitt „Zustand, Backup und Restore“ nennt den Ort der Offline-Kopie.
 - [ ] AK-4: Angenommen der Merge ist durch und der nächste nächtliche Backup-Lauf auf dem staging-Host ist vorbei, dann gibt es im restic-Repository von staging einen Snapshot je Eintrag in `state`. _(nach dem Merge)_

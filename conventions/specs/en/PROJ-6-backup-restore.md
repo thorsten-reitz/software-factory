@@ -25,7 +25,7 @@
 
 ## Acceptance Criteria
 - [ ] AC-1: Given the repo, then `.factory/delivery.json` lists every state of the project under `state` ({{STATE}}), `backup.enabled: true`, `backup.schedule: "daily"`, `backup.retention` 7/4/12 (or a deviation with a reason in `docs/operations.md`) and `backup.restoreTest: "weekly"`, and the check `delivery-config` is green.
-<!-- only if: tier compose -->
+<!-- only if: tier compose or kamal -->
 - [ ] AC-2: Given `deploy/compose.yml`, then every named volume holding state is listed in `state`, and every volume without state (e.g. a cache) is excluded with a reason in `docs/operations.md`.
 - [ ] AC-3: Given `docs/operations.md`, then the "Runbooks" section covers restore on demand (Actions → delivery → `restore`), recovery on a new host (cloud-init → deploy → restore) and the recommendation of a quarterly drill, and the section "State, backup and restore" names the location of the offline copy.
 - [ ] AC-4: Given the merge is done and the next nightly backup on the staging host has run, then the staging restic repository has one snapshot per entry in `state`. _(after merge)_

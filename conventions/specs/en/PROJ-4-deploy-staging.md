@@ -31,8 +31,8 @@
 
 ## Acceptance Criteria
 - [ ] AC-1: Given the repo, then `.factory/delivery.json` has under `environments.staging` `port: {{STAGING_PORT}}`, `domain: "{{STAGING_DOMAIN}}"`, `autoDeploy: true` and `data: "{{STAGING_DATA}}"`, and the check `delivery-config` is green.
-<!-- only if: tier compose -->
-- [ ] AC-2: Given `deploy/compose.yml`, then it contains no secrets, every service has a memory limit, the app only listens on `127.0.0.1:${PORT}`, migrations run in the `migrate` service (profile `migrate`), and the check `compose` (`docker compose config`) is green.
+<!-- only if: tier compose or kamal -->
+- [ ] AC-2: Given `deploy/compose.yml`, then it contains no secrets, every service has a memory limit, the app only listens on `127.0.0.1:${PORT}`, migrations run in the `migrate` service (profile `migrate`), and the check `compose` (`docker compose config`) is green. The kamal tier needs no further project file (no `config/deploy.yml`).
 <!-- only if: tier k3s -->
 - [ ] AC-2: Given the Helm chart in `deploy/helm/app`, then it contains no secrets, every container has resource limits and probes on `/livez` and `/readyz`, migrations run as a job before the rollout, and the check `helm` (`helm lint` and `kubeconform`) is green.
 - [ ] AC-3: Given a PR is merged, when the `delivery` workflow runs on `main`, then the image is pushed to GHCR with its digest and deployed to staging automatically. _(after merge)_
@@ -42,7 +42,7 @@
 <!-- only if: staging data seed -->
 - [ ] AC-7: Given `deploy/compose.yml`, then it has a service `seed` with `profiles: [seed]`, the same image as the app, entrypoint `/factory/with-secrets` and a dependency on the database; its command (e.g. `npm run seed`) fills an empty database with synthetic sample data without personal data and creates no duplicates when run twice (shown by a test).
 <!-- only if: staging data anonymized-copy -->
-- [ ] AC-7: Given `deploy/anonymize.sql`, then it overwrites every column with personal data (per the data model) with synthetic values, and `docs/operations.md` gives the reason for the anonymized copy. (factory-pipelines v0.1.1 does not load the copy yet.)
+- [ ] AC-7: Given `deploy/anonymize.sql`, then it overwrites every column with personal data (per the data model) with synthetic values, and `docs/operations.md` gives the reason for the anonymized copy. (factory-pipelines v0.2.0 does not load the copy yet.)
 - [ ] AC-8: Given the repo, then it contains no secret value, and every secret name the app expects is listed in `docs/operations.md`.
 
 ## Edge Cases

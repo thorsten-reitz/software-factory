@@ -31,8 +31,8 @@
 
 ## Akzeptanzkriterien
 - [ ] AK-1: Angenommen das Repo, dann enthält `.factory/delivery.json` unter `environments.staging` `port: {{STAGING_PORT}}`, `domain: "{{STAGING_DOMAIN}}"`, `autoDeploy: true` und `data: "{{STAGING_DATA}}"`, und der Check `delivery-config` ist grün.
-<!-- nur wenn: tier compose -->
-- [ ] AK-2: Angenommen `deploy/compose.yml`, dann enthält sie keine Secrets, jeder Dienst hat ein Speicherlimit, die App lauscht nur auf `127.0.0.1:${PORT}`, Migrationen laufen im Dienst `migrate` (Profil `migrate`), und der Check `compose` (`docker compose config`) ist grün.
+<!-- nur wenn: tier compose oder kamal -->
+- [ ] AK-2: Angenommen `deploy/compose.yml`, dann enthält sie keine Secrets, jeder Dienst hat ein Speicherlimit, die App lauscht nur auf `127.0.0.1:${PORT}`, Migrationen laufen im Dienst `migrate` (Profil `migrate`), und der Check `compose` (`docker compose config`) ist grün. In der Stufe kamal gibt es keine weitere Projektdatei (kein `config/deploy.yml`).
 <!-- nur wenn: tier k3s -->
 - [ ] AK-2: Angenommen das Helm-Chart unter `deploy/helm/app`, dann enthält es keine Secrets, jeder Container hat Ressourcen-Limits und Probes auf `/livez` und `/readyz`, Migrationen laufen als Job vor dem Rollout, und der Check `helm` (`helm lint` und `kubeconform`) ist grün.
 - [ ] AK-3: Angenommen ein PR ist gemergt, wenn der Workflow `delivery` auf `main` läuft, dann wird das Image mit seinem Digest nach GHCR gepusht und automatisch nach staging ausgerollt. _(nach dem Merge)_
@@ -42,7 +42,7 @@
 <!-- nur wenn: staging-Daten seed -->
 - [ ] AK-7: Angenommen `deploy/compose.yml`, dann enthält sie einen Dienst `seed` mit `profiles: [seed]`, demselben Image wie die App, Entrypoint `/factory/with-secrets` und Abhängigkeit von der Datenbank; sein Befehl (z. B. `npm run seed`) füllt eine leere Datenbank mit synthetischen Beispieldaten ohne personenbezogene Daten und erzeugt bei zweimaligem Lauf keine Duplikate (belegt durch einen Test).
 <!-- nur wenn: staging-Daten anonymized-copy -->
-- [ ] AK-7: Angenommen `deploy/anonymize.sql`, dann überschreibt es jede Spalte mit personenbezogenen Daten (laut Datenmodell) mit synthetischen Werten, und `docs/operations.md` begründet die anonymisierte Kopie. (factory-pipelines v0.1.1 spielt die Kopie noch nicht ein.)
+- [ ] AK-7: Angenommen `deploy/anonymize.sql`, dann überschreibt es jede Spalte mit personenbezogenen Daten (laut Datenmodell) mit synthetischen Werten, und `docs/operations.md` begründet die anonymisierte Kopie. (factory-pipelines v0.2.0 spielt die Kopie noch nicht ein.)
 - [ ] AK-8: Angenommen das Repo, dann enthält es keinen Secret-Wert, und jeder Secret-Name, den die App erwartet, steht in `docs/operations.md`.
 
 ## Edge Cases

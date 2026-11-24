@@ -26,10 +26,10 @@ Leitfaden für den Betrieb jedes Projekts, das die Software Factory baut. Hinter
 | `docs/operations.md` | `/init`, ergänzt von PROJ-1 und jedem Feature mit neuem Zustand oder Secret | Betriebsentscheidungen, Abweichungen, Secret-Namen, Runbooks |
 | `.factory/delivery.json` | `/init`, ergänzt von den Plattform-Specs | Betriebsschalter, Schema: `factory-pipelines/schema/delivery.schema.json` |
 | `.factory/setup.json` | `/init` | `install`, `checks` (inkl. Plattform-Checks), `e2e`, optional `seed` für die lokale Entwicklung |
-| `.github/workflows/delivery.yml` | `/init` (nur manueller Start), PROJ-2 schaltet PR und Push ein | Aufruf von `thorsten-reitz/factory-pipelines/.github/workflows/delivery.yml@v0.1.1` |
+| `.github/workflows/delivery.yml` | `/init` (nur manueller Start), PROJ-2 schaltet PR und Push ein | Aufruf von `thorsten-reitz/factory-pipelines/.github/workflows/delivery.yml@v0.2.0` |
 | `.github/CODEOWNERS` | `/init` | Review für `.github/`, `.factory/delivery.json`, `deploy/` |
 | `Dockerfile`, `.dockerignore`, `deploy/compose.test.yml` | PROJ-2 | Image und Test-Umgebung in CI |
-| `deploy/compose.yml` | PROJ-4 | staging und production (Stufe compose), mit den Diensten `migrate` und, bei synthetischen staging-Daten, `seed` |
+| `deploy/compose.yml` | PROJ-4 | staging und production (Stufen compose und kamal), mit den Diensten `migrate` und, bei synthetischen staging-Daten, `seed` |
 | `flags/flags.json` | erstes Feature hinter einem Flag | OpenFeature/flagd-Flags |
 
 ### Warum der Aufruf-Workflow zuerst nur manuell startet
@@ -50,16 +50,18 @@ production auf dem Factory-Server ist erlaubt. Dann gilt: Ressourcen werden mit 
 
 **Synthetische Daten (`seed`):** Auf dem Host liegt kein Quellcode, `.factory/setup.json` → `seed` läuft dort also nicht. Stattdessen definiert `deploy/compose.yml` einen Dienst `seed` mit `profiles: [seed]`, demselben Image, Entrypoint `/factory/with-secrets` und einem idempotenten Befehl (z. B. `npm run seed`), siehe `templates/compose.yml` in factory-pipelines. `factory-host` startet ihn bei jedem staging-Deploy nach den Migrationen, wenn `environments.staging.data` `seed` ist (Standard). Ohne Dienst `seed` passiert nichts. Ein `seed`-Befehl in `package.json` bzw. `.factory/setup.json` für die lokale Entwicklung kann bleiben.
 
-`anonymized-copy` ist in factory-pipelines v0.1.1 noch nicht umgesetzt (der Deploy vermerkt es nur im Log). Für staging nur mit Hinweis auf die DSGVO-Folgen (besonders, wenn staging auf dem Factory-Server läuft) und darauf, dass das Anonymisierungs-SQL bei jeder Schemaänderung mitgepflegt werden muss.
+`anonymized-copy` ist in factory-pipelines v0.2.0 noch nicht umgesetzt (der Deploy vermerkt es nur im Log). Für staging nur mit Hinweis auf die DSGVO-Folgen (besonders, wenn staging auf dem Factory-Server läuft) und darauf, dass das Anonymisierungs-SQL bei jeder Schemaänderung mitgepflegt werden muss.
 
 ## Orchestrierungs-Stufe wählen
 
 | Stufe | `tier` | Passt, wenn | Downtime beim Deploy | Vorlagen in factory-pipelines |
 |---|---|---|---|---|
-| **Compose + Caddy** (Standard) | `compose` | ein Host pro Umgebung, bis etwa 5 Dienste, wenige Sekunden Unterbrechung beim Deploy vertretbar | wenige Sekunden | ab v0.1 |
-| **Kamal** | `kamal` | ein bis wenige Hosts, Deploys ohne Unterbrechung nötig, Web-App mit wenigen Rollen | keine | ab v0.2 |
-| **k3s + Helm + Argo CD** | `k3s` | ab etwa 6–8 Dienste, mehrere Knoten, Selbstheilung oder Skalierung nötig, Jobs/Operatoren aus dem Kubernetes-Ökosystem, oder der Kunde verlangt Kubernetes | keine (Rolling Update) | ab v0.3 |
+| **Compose + Caddy** (Standard) | `compose` | ein Host pro Umgebung, bis etwa 5 Dienste, wenige Sekunden Unterbrechung beim Deploy vertretbar | wenige Sekunden | verfügbar (seit v0.1) |
+| **Kamal (kamal-proxy)** | `kamal` | wie compose (ein Host pro Umgebung, bis etwa 5 Dienste), aber Deploys ohne Unterbrechung nötig | keine | verfügbar (seit v0.2) |
+| **k3s + Helm + Argo CD** | `k3s` | ab etwa 6–8 Dienste, mehrere Knoten, Selbstheilung oder Skalierung nötig, Jobs/Operatoren aus dem Kubernetes-Ökosystem, oder der Kunde verlangt Kubernetes | keine (Rolling Update) | folgt mit v0.3 |
 | **Verwaltetes Kubernetes** | – (nur dokumentiert) | Hochverfügbarkeit über Zonen, Compliance- oder Kundenvorgabe | keine | keine, wie k3s mit Cluster vom Anbieter |
+
+**So funktioniert die Stufe kamal:** Sie nutzt nur [kamal-proxy](https://github.com/basecamp/kamal-proxy), nicht die Kamal-CLI, und braucht keine eigene Projektdatei (kein `config/deploy.yml`). Das Projekt behält dieselbe `deploy/compose.yml` wie in der Stufe compose, nur `"tier": "kamal"` in `.factory/delivery.json` ändert sich. `factory-host` startet den Dienst `app` dann als eigenen Container pro Release; ein kleiner kamal-proxy je App und Umgebung auf `127.0.0.1:<port>` schaltet den Verkehr erst um, wenn `/readyz` grün ist, und lässt den alten Container auslaufen. Caddy, Port-Konvention, Health-Gate, Secrets, Backup und Seed sind identisch. Kosten: etwa 20 MB RAM pro App und Umgebung für den Proxy. Der Wechsel von compose zu kamal ist eine Zeile; der erste Deploy danach hat einmal eine kurze Unterbrechung. Ohne Kamal-CLI, weil sie einen SSH-Zugang mit Shell und Docker-Rechten (praktisch root) bräuchte; so bleibt der Deploy-Schlüssel auf deploy, rollback, restore und status beschränkt.
 
 Weitere Kriterien: verfügbare Kapazität (unten), Betriebserfahrung im Team, Kosten. **Im Zweifel die einfachere Stufe.** Ein späterer Wechsel bleibt überschaubar, weil Image und `delivery.json` gleich bleiben. k3s läuft immer auf eigenen Hosts, nie auf dem Factory-Server.
 
@@ -152,7 +154,7 @@ Produkt-Features ab PROJ-8, starten sobald PROJ-2 fertig ist
 | `{{STATE}}` | Liste der `state`-Einträge, z. B. „Postgres `db`, Volume `uploads`“ |
 | `{{HEALTH_COMPONENTS}}` | Liste der Komponenten, z. B. „`db` (kritisch), `mail`“ |
 | `{{WATCHDOG}}` | z. B. „healthchecks.io“, „healthchecks.io und GitHub-Actions-Probe alle 30 Minuten“ |
-| `{{PIPELINES_VERSION}}` | Version von factory-pipelines im Aufruf-Workflow, derzeit `v0.1.1` |
+| `{{PIPELINES_VERSION}}` | Version von factory-pipelines im Aufruf-Workflow, derzeit `v0.2.0` |
 
 Der Kommentar `<!-- nur wenn: … -->` bzw. `<!-- only if: … -->` gilt für die Zeile direkt darunter. Trifft die Bedingung nicht zu, entfernt `/init` die Zeile, sonst nur den Kommentar. Danach nummeriert `/init` die Akzeptanzkriterien lückenlos durch. Kursive Hinweise (`_…_`) in den Vorlagen sind Ausfüllhilfen und werden ersetzt.
 
@@ -162,16 +164,16 @@ Die Checks laufen in der Factory (`factory-verify`) und in CI (Job „Checks“ 
 
 | Check | Befehl | Ab |
 |---|---|---|
-| `delivery-config` | `check-jsonschema --schemafile https://raw.githubusercontent.com/thorsten-reitz/factory-pipelines/v0.1.1/schema/delivery.schema.json .factory/delivery.json` | `/init` |
+| `delivery-config` | `check-jsonschema --schemafile https://raw.githubusercontent.com/thorsten-reitz/factory-pipelines/v0.2.0/schema/delivery.schema.json .factory/delivery.json` | `/init` |
 | `workflows` | `actionlint` | `/init` |
 | `dockerfile` | `hadolint --failure-threshold error Dockerfile` | PROJ-2 |
 | `compose-test` | `IMAGE=check docker compose -f deploy/compose.test.yml config -q` | PROJ-2 |
-| `compose` | `IMAGE=check PROJECT_ENV=check PORT=5100 SECRETS_DIR=/tmp FACTORY_BIN=/tmp docker compose -f deploy/compose.yml config -q` | PROJ-4 (Stufe compose) |
+| `compose` | `IMAGE=check PROJECT_ENV=check PORT=5100 SECRETS_DIR=/tmp FACTORY_BIN=/tmp docker compose -f deploy/compose.yml config -q` | PROJ-4 (Stufen compose und kamal) |
 | `helm` | `helm lint deploy/helm/app && helm template deploy/helm/app \| kubeconform -strict -summary -ignore-missing-schemas` | PROJ-4 (Stufe k3s), erst sobald factory-pipelines die Stufe k3s ausliefert (v0.3) |
 
-Die Schema-Version im Check `delivery-config` ist dieselbe wie im Aufruf-Workflow. Hebt Renovate die Version von factory-pipelines an, gehört die Zeile in denselben PR. Für die Stufe kamal folgt ein Check mit factory-pipelines v0.2.
+Die Schema-Version im Check `delivery-config` ist dieselbe wie im Aufruf-Workflow. Hebt Renovate die Version von factory-pipelines an, gehört die Zeile in denselben PR. Die Stufe kamal braucht keinen eigenen Check, sie nutzt `compose`.
 
-Das Job-Image der Factory enthält alle Werkzeuge dafür (`actionlint`, `check-jsonschema`, `hadolint`, `helm`, `kubeconform`, Docker-CLI mit Compose-Plugin ohne Daemon). In CI installiert factory-pipelines (ab v0.1.1) `actionlint`, `check-jsonschema` 0.33.0 und `hadolint` 2.12.0 selbst, sobald ein Check sie verwendet; Docker Compose ist auf den Runnern vorhanden. `helm` und `kubeconform` installiert die Pipeline noch nicht, sie kommen mit der Stufe k3s.
+Das Job-Image der Factory enthält alle Werkzeuge dafür (`actionlint`, `check-jsonschema`, `hadolint`, `helm`, `kubeconform`, Docker-CLI mit Compose-Plugin ohne Daemon). In CI installiert factory-pipelines (seit v0.1.1) `actionlint`, `check-jsonschema` 0.33.0 und `hadolint` 2.12.0 selbst, sobald ein Check sie verwendet; Docker Compose ist auf den Runnern vorhanden. `helm` und `kubeconform` installiert die Pipeline noch nicht, sie kommen mit der Stufe k3s.
 
 ## Was der Mensch tut
 

@@ -23,7 +23,7 @@ Server bereitstellen: {{PROVISIONING}} (Vorlage `factory-pipelines/templates/clo
 
 - **Stufe:** {{TIER}}
 - **Begründung:** _Kriterien aus dem Leitfaden: Anzahl Dienste und Hosts, Downtime beim Deploy, Erfahrung, Kosten_
-- **Zielstufe später:** _nur wenn abweichend, z. B. „kamal, sobald factory-pipelines v0.2 verfügbar ist“_
+- **Zielstufe später:** _nur wenn abweichend, z. B. „k3s, sobald factory-pipelines v0.3 verfügbar ist“_
 
 **Kapazität des Factory-Servers** (nur wenn eine Umgebung dort läuft):
 
@@ -55,7 +55,7 @@ Server bereitstellen: {{PROVISIONING}} (Vorlage `factory-pipelines/templates/clo
 <!-- nur wenn: staging-Daten seed -->
 - **Seed:** Dienst `seed` in `deploy/compose.yml` (Profil `seed`, idempotent), läuft bei jedem staging-Deploy nach den Migrationen. Nie personenbezogene Daten.
 <!-- nur wenn: staging-Daten anonymized-copy -->
-- **Anonymisierung:** `deploy/anonymize.sql`, wird bei jeder Schemaänderung mitgepflegt. In factory-pipelines v0.1.1 noch nicht umgesetzt. DSGVO: _Begründung, warum eine anonymisierte Kopie nötig und zulässig ist_
+- **Anonymisierung:** `deploy/anonymize.sql`, wird bei jeder Schemaänderung mitgepflegt. In factory-pipelines v0.2.0 noch nicht umgesetzt. DSGVO: _Begründung, warum eine anonymisierte Kopie nötig und zulässig ist_
 
 ## 4. Health
 
