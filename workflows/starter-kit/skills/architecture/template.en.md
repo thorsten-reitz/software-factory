@@ -24,5 +24,11 @@ Stored in: …
 ## E) Backend Needed?
 No / Yes, because …
 
+## F) Operations
+- **New dependencies → health check:** none / `<component>` (critical yes/no)
+- **New state → `state`:** none / …
+- **New secrets (names only):** none / `…`
+- **Feature flag:** none / `<flag-name>`, off in production at first
+
 ## Decision Log
 - **Decision:** … | **Alternative:** … | **Trade-off:** … (YYYY-MM-DD)

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/thorsten-reitz/factory-pipelines/v0/schema/delivery.schema.json",
+  "project": "example-app",
+  "tier": "compose",
+  "provisioning": "cloud-init",
+  "image": { "dockerfile": "Dockerfile", "platforms": ["linux/amd64"], "scan": true },
+  "environments": {
+    "test": { "e2e": true, "services": "deploy/compose.test.yml", "url": "http://localhost:8080" },
+    "staging": { "port": 5101, "domain": "staging.example.org", "autoDeploy": true, "data": "seed" },
+    "production": { "port": 5102, "domain": "app.example.org", "approval": true }
+  },
+  "state": [
+    { "type": "postgres", "service": "db", "pitr": false },
+    { "type": "volume", "name": "uploads" }
+  ],
+  "backup": {
+    "enabled": true,
+    "schedule": "daily",
+    "retention": { "daily": 7, "weekly": 4, "monthly": 12 },
+    "restoreTest": "weekly"
+  },
+  "health": { "components": ["db", "storage", "mail"] },
+  "observability": { "enabled": true, "metrics": false },
+  "watchdog": {
+    "provider": "healthchecks",
+    "githubProbe": { "enabled": false, "intervalMinutes": 30 },
+    "externalHttp": "none"
+  },
+  "flags": { "enabled": true, "file": "flags/flags.json" }
+}

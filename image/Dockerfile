@@ -1,5 +1,6 @@
 # Job-Image: Jeder Factory-Job läuft in einem eigenen Container aus diesem Image.
-# Enthält Claude Code, GitHub CLI, git, Node und einen Chromium für Screenshots/E2E-Tests.
+# Enthält Claude Code, GitHub CLI, git, Node, Python (uv), einen Chromium für Screenshots/E2E-Tests
+# und die Werkzeuge für die Plattform-Checks.
 FROM mcr.microsoft.com/playwright:v1.65.0-noble
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -16,7 +17,39 @@ RUN apt-get update -qq \
 RUN npm install -g playwright@1.65.0 && npm cache clean --force
 ENV NODE_PATH=/usr/lib/node_modules
 
-# Factory-Werkzeuge, Playbook und Workflow
+# Werkzeuge für die Plattform-Checks (conventions/README.md): Workflows, Dockerfiles, Compose- und
+# Kubernetes-Dateien statisch prüfen. Docker-CLI mit Compose-Plugin nur für "docker compose config",
+# im Job gibt es keinen Daemon und keinen Docker-Socket. Versionen fest, Updates bewusst per PR.
+ARG ACTIONLINT_VERSION=1.7.7
+ARG HADOLINT_VERSION=2.12.0
+ARG HELM_VERSION=3.17.3
+ARG KUBECONFORM_VERSION=0.7.0
+ARG DOCKER_CLI_VERSION=28.1.1
+ARG COMPOSE_VERSION=2.35.1
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+RUN case "$(dpkg --print-architecture)" in \
+      amd64) GOARCH=amd64; UNAME_M=x86_64; HADOLINT_ARCH=x86_64 ;; \
+      arm64) GOARCH=arm64; UNAME_M=aarch64; HADOLINT_ARCH=arm64 ;; \
+      *) echo "Architektur nicht unterstützt" >&2; exit 1 ;; \
+    esac \
+ && curl -fsSL "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_${GOARCH}.tar.gz" \
+    | tar -xz -C /usr/local/bin actionlint \
+ && curl -fsSL -o /usr/local/bin/hadolint "https://github.com/hadolint/hadolint/releases/download/v${HADOLINT_VERSION}/hadolint-Linux-${HADOLINT_ARCH}" \
+ && chmod 0755 /usr/local/bin/hadolint \
+ && curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-${GOARCH}.tar.gz" \
+    | tar -xz -C /usr/local/bin --strip-components=1 "linux-${GOARCH}/helm" \
+ && curl -fsSL "https://github.com/yannh/kubeconform/releases/download/v${KUBECONFORM_VERSION}/kubeconform-linux-${GOARCH}.tar.gz" \
+    | tar -xz -C /usr/local/bin kubeconform \
+ && curl -fsSL "https://download.docker.com/linux/static/stable/${UNAME_M}/docker-${DOCKER_CLI_VERSION}.tgz" \
+    | tar -xz -C /usr/local/bin --strip-components=1 docker/docker \
+ && mkdir -p /usr/local/lib/docker/cli-plugins \
+ && curl -fsSL -o /usr/local/lib/docker/cli-plugins/docker-compose "https://github.com/docker/compose/releases/download/v${COMPOSE_VERSION}/docker-compose-linux-${UNAME_M}" \
+ && chmod 0755 /usr/local/lib/docker/cli-plugins/docker-compose \
+ && actionlint --version && hadolint --version && helm version --short && kubeconform -v \
+ && docker --version && docker compose version
+SHELL ["/bin/sh", "-c"]
+
+# Factory-Werkzeuge, Playbook, Workflow und Betriebskonventionen
 COPY image/bin/ /usr/local/bin/
 COPY image/entrypoint.sh /factory/entrypoint.sh
 COPY image/preview.sh /factory/preview.sh
@@ -24,6 +57,7 @@ COPY image/improve.sh /factory/improve.sh
 COPY playbooks/factory.md /factory/playbook.md
 COPY playbooks/improve.md /factory/improve.md
 COPY workflows/ /factory/workflows/
+COPY conventions/ /factory/conventions/
 RUN chmod +x /usr/local/bin/factory-* /factory/entrypoint.sh /factory/preview.sh /factory/improve.sh
 
 # Claude Code als normaler Nutzer installieren (offizieller Installer)
@@ -33,6 +67,9 @@ RUN curl -fsSL https://claude.ai/install.sh | bash
 # Python-Projekte: uv (verwaltet Python-Versionen und Pakete selbst)
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH=/home/pwuser/.local/bin:$PATH
+# Schema-Validierung von .factory/delivery.json (Plattform-Check "delivery-config")
+ARG CHECK_JSONSCHEMA_VERSION=0.33.0
+RUN uv tool install "check-jsonschema==${CHECK_JSONSCHEMA_VERSION}" && check-jsonschema --version
 
 WORKDIR /work
 ENTRYPOINT ["/factory/entrypoint.sh"]

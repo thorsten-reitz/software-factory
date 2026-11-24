@@ -51,6 +51,7 @@ Goal: a clear decision within a few minutes. **No code, no commits, no push.**
   - Are there contradictions within the spec or with the existing code, other features or the PRD?
   - Does it fit the stack in `docs/stack.md`, or would it need new services (database, login, payment …) that are not planned there?
   - Are prerequisites missing (a feature the spec needs is not built yet)?
+- **Platform spec** (the header has `**Typ:** Plattform` or `**Type:** Platform`; it sets up CI, deploys, backups, health or monitoring, see "Platform specs" below): also check the section **Voraussetzungen (Mensch)** / **Prerequisites (human)**. You cannot verify these items yourself, so you rely on the human: every item must be ticked (`- [x]`) in the spec on the default branch, or confirmed by the human in an issue comment. If any item is open → `question` that lists the open items and asks the human to do them and then tick them in the spec (push) or confirm them here. Do not approve with an open prerequisite.
 - Decision:
   - **Small and clearly resolvable** (one criterion unclear, one decision missing) → `question`
   - **Fundamentally not buildable**, the spec must be revised (contradictory, not testable, outside the stack, prerequisite missing) → `rejected` with the reason and what the human has to change
@@ -63,6 +64,7 @@ Goal: a clear decision within a few minutes. **No code, no commits, no push.**
 - Write them to `/scenarios/scenarios.md`. This folder is **outside the repo**. The developer agent never sees it, only the later acceptance. Do not put any of it into the repo, commits or comments.
 - At least one scenario per acceptance criterion (or per bug), plus the most important edge cases. Every scenario has an ID (`S-1` …), a reference (the criterion ID from the spec, e.g. `AK-2` or `AC-2`), a starting point, concrete steps in the browser or the call to make, and the expected result.
 - Write from the user's point of view, without knowledge of the later implementation (no file names, no function names). Write them in the project language.
+- **Platform specs:** the "user" is the project owner or the pipeline. The scenarios name what to check in the CI run of the PR, which static check or local call to make, and the expected result. File names from the spec itself (e.g. `.factory/delivery.json`) are allowed. Criteria marked _(nach dem Merge)_ / _(after merge)_ get a scenario that says how to verify them after the merge, marked the same way.
 
 Then end the run.
 
@@ -87,11 +89,25 @@ Then end the run.
    5. **Assumptions I made** (one per line, or "none")
    6. **Checks** (content of `/work/verify.md`)
    7. **Screenshots** (output of `factory-screenshot`), if there are visible changes
-   8. **Assessment**: "safe" or "please check carefully" (in the project language, e.g. `Sicher` / `Bitte genau prüfen` in German) with a reason in 1–2 sentences
+   8. **Changes to pipeline and operations configuration**, if the PR touches `.github/`, `.factory/delivery.json` or `deploy/`: every changed file with one line on what and why (German heading: `Änderungen an Pipeline und Betriebskonfiguration`). These files need the human's review (CODEOWNERS).
+   9. **Verified after merge**, for platform specs: every criterion marked _(nach dem Merge)_ / _(after merge)_ with how it will be visible (German heading: `Wird nach dem Merge geprüft`). The pipeline comments the result of the first deploy on the PR and opens a `deploy-failed` issue if it fails.
+   10. **Assessment**: "safe" or "please check carefully" (in the project language, e.g. `Sicher` / `Bitte genau prüfen` in German) with a reason in 1–2 sentences
 5. `factory-report built "<summary in 1–2 sentences>" --pr <url>` and end the run. An independent agent then checks your result.
    The runner only accepts `built` if `factory-verify` was green **on exactly the pushed commit** and the PR does not change the spec. So after every further commit, run `factory-verify` again.
 
 **Assess honestly:** "safe" only if you built what the spec asks for, all checks are green and you have seen it yourself. Otherwise "please check carefully" and why.
+
+**CI on the PR:** if the project has `.github/workflows/delivery.yml` with a `pull_request` trigger, wait for its run on your pushed commit before reporting `built` (`gh pr checks <url> --watch`, at most about 20 minutes). A red run counts like a red `factory-verify`: fix it (it belongs to the three rounds). If it does not finish in time, say so in the PR body and in the assessment.
+
+## Platform specs
+
+Platform specs (`**Typ:** Plattform` / `**Type:** Platform`) set up the project's operations: CI, health check, deploys, production approval, backups, observability. The conventions are in `/factory/conventions/README.md`; read it before the architecture step.
+
+- **Use the templates, do not invent pipelines.** CI/CD logic lives in the public repo `thorsten-reitz/factory-pipelines` at the version pinned in `.github/workflows/delivery.yml` (e.g. `@v0.1.0`). Take files from its `templates/` folder at exactly that version (`gh api -H "Accept: application/vnd.github.raw" "repos/thorsten-reitz/factory-pipelines/contents/templates/<file>?ref=<version>"`) and adapt only what the project needs. No deploy, backup or secret handling of your own in the project: no extra jobs in the caller workflow, no `secrets:`, no shell scripts that do what factory-pipelines does.
+- `.factory/delivery.json` must stay valid against the schema (check `delivery-config`). Add the platform checks the spec names to `.factory/setup.json` → `checks` (list in the conventions guide).
+- **Secrets:** never write a secret value anywhere. New secret names go into `docs/operations.md` (section "Secrets"); the human sets the values in Infisical.
+- Every PR that changes `.github/`, `.factory/delivery.json` or `deploy/` lists those changes in the PR body (item 8 above), platform spec or not.
+- The job container has no Docker daemon: `docker compose config`, `helm lint`, `kubeconform`, `actionlint`, `hadolint` and `check-jsonschema` work, running containers does not. The test environment with real services is the CI run of the PR.
 
 **Return from acceptance:** if the history contains an acceptance comment with findings (rework), fix exactly those findings on the same branch, verify again (`verifying`), push, update the PR body and report `built` again.
 
@@ -106,7 +122,12 @@ You do not report intermediate steps in this phase. At the end you report exactl
 1. Read the spec (`spec.md` in the feature folder) and the test scenarios in `/scenarios/scenarios.md`. If the scenarios are missing, derive them yourself from the acceptance criteria and note that in the report.
 2. You are on the branch of the pull request. Run `factory-verify`.
 3. Start the app (`.factory/setup.json` → `dev`) on a free port and test **every scenario yourself in the browser** (Playwright script with Node, Chromium is installed). Capture important states with `factory-screenshot`.
-4. Also check briefly for the obvious: console errors, broken layout at 375px, inputs that crash the app.
+   **Platform specs** (`**Typ:** Plattform` / `**Type:** Platform`): no browser test unless a scenario asks for one (e.g. a health endpoint of the app started locally). Instead:
+   - **CI run of the PR:** `gh pr checks <url>` and `gh run view <run-id> --log-failed`. The `delivery` workflow must be green on the PR's head commit; the test environment *is* this run. If it is still running, wait (`gh pr checks <url> --watch`, at most about 20 minutes). Red or not finished counts as a failed scenario.
+   - **Static checks:** `factory-verify` (schema of `.factory/delivery.json`, `actionlint`, `docker compose config` …) plus the calls named in the scenarios.
+   - **Files:** inspect what the criteria require (no secret values, memory limits, `state` complete, secret names in `docs/operations.md` …).
+   - **After-merge criteria** (_(nach dem Merge)_ / _(after merge)_) cannot be tested yet. They are not a failure: check that the PR body lists them under "Verified after merge" and mark them ⏳ in your report. If they are missing from the PR body, that is a finding.
+4. Also check briefly for the obvious: console errors, broken layout at 375px, inputs that crash the app (skip this for platform specs that do not change the UI).
 5. Write the **acceptance report** to a file, in the project language: per scenario ✅ / ❌ with a one-sentence reason, problems found with steps to reproduce, checks, screenshots.
 6. Decision:
    - **All scenarios passed, no serious problems** → `factory-report accepted "<1–2 sentences>" --pr <url> --body-file <report>`

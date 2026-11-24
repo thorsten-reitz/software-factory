@@ -33,7 +33,16 @@ Write it in the project language (`FACTORY_LANGUAGE`). Use the template for that
 - **C) Tech decisions** with a WHY a PM understands
 - **D) Dependencies** (packages with a one-line purpose; prefer none)
 - **E) Backend needed?** yes/no with reason (database, auth, server logic, API, multi-user sync)
+- **F) Operations** (see below)
 - **Decision Log** with alternative considered + trade-off
+
+## Operations
+If the project has `docs/operations.md` and `.factory/delivery.json`, it follows the factory's operations conventions (`/factory/conventions/README.md`). Read both, then plan in section F of `design.md`:
+- **New dependency** (database, object storage, mail, queue, third-party API) → a health check for it under `health.components`, and whether it is critical (its failure makes `/readyz` red) or not (only `degraded`).
+- **New state** (table in a new database, volume, upload folder, files written at runtime) → a new entry under `state` in `.factory/delivery.json`, so it is backed up and restore-tested. New tables in an existing database need no new entry.
+- **New secrets** (API keys, credentials) → names only, listed in `docs/operations.md`. The human sets the values in Infisical; never plan a value into the repo.
+- **Bigger features** (new user-facing area, changed core flow, anything risky to switch on for everyone at once) → behind an OpenFeature flag in `flags/flags.json`, off in production at first. If the spec asks for a flag or the feature is big, plan it; if `flags.enabled` is still `false`, the build sets up OpenFeature with flagd first.
+- **Platform specs** (`**Typ:** Plattform` / `**Type:** Platform`): plan with the templates from `factory-pipelines` (see the playbook), not with pipelines of your own.
 
 ## After Saving
 - `features/INDEX.md` status → `Architected`

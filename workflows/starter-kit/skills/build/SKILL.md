@@ -42,7 +42,16 @@ From `design.md` → section E ("Backend needed?", in German "Backend nötig?").
 - No leftover mock data
 - Handle loading and error states on every data access
 
-## Step 5: Tests
+## Step 5: Operations
+Applies when the project has `docs/operations.md` and `.factory/delivery.json` (operations conventions, `/factory/conventions/README.md`). Implement what section F of `design.md` plans, and check the code you wrote against these rules even if the design missed something:
+- **New dependency → health check.** Every new external dependency (database, object storage, mail, queue, third-party API) gets a check in `/health` with a timeout, and its name in `health.components` in `.factory/delivery.json`. Critical dependencies also count for `/readyz`. Cover the new check with a test.
+- **New state → `state`.** A new database, volume, upload folder or file written at runtime gets an entry under `state` in `.factory/delivery.json` (and a named volume in `deploy/compose.yml` if the project has one). Otherwise it is neither backed up nor restore-tested.
+- **New secrets → names in `docs/operations.md`.** Read them from the environment, add the name to the "Secrets" section with its purpose and environments. Never write a value into code, config, tests or the PR; for tests use obvious test values. The human sets the real values in Infisical. Mention new secret names in the PR body, because the deploy fails until they exist.
+- **Bigger features behind a flag.** If `design.md` plans a flag or the spec asks for one: evaluate it through the OpenFeature SDK, define it in `flags/flags.json` with `off` for production. If `flags.enabled` in `.factory/delivery.json` is still `false`, set up OpenFeature with the flagd provider (in-process, reading `flags/flags.json`) first and set `flags.enabled` to `true`.
+- **Migrations** follow expand/contract (stack pack `postgres`): every migration works with the previous app version.
+- Every change to `.github/`, `.factory/delivery.json` or `deploy/` is listed in the PR body (playbook, "Changes to pipeline and operations configuration").
+
+## Step 6: Tests
 - Unit tests for non-trivial logic (hooks, utilities, validation), co-located next to the source file
 - Run the project's tests (as defined in `.factory/setup.json` → `checks`) until green
 
@@ -51,6 +60,7 @@ From `design.md` → section E ("Backend needed?", in German "Backend nötig?").
 - [ ] Existing components reused, no duplicates
 - [ ] Loading, error and empty states exist
 - [ ] Backend (if any): migrations, RLS, validation, auth checks, integration tests
+- [ ] Operations (if the project follows the conventions): health check per new dependency, `state` per new state, secret names in `docs/operations.md`, flag for bigger features
 - [ ] Lint, typecheck, tests and build pass locally
 - [ ] `features/INDEX.md` status is `In Progress`
 - [ ] Short implementation notes added at the end of `design.md` (section "Implementation", in German "Umsetzung": what was built, deviations from the plan and why), in the project language

@@ -35,11 +35,12 @@ Eigener Docker-Container pro Issue
 ```
 
 - **Runner** (`runner/`): kleiner Dienst auf dem Server. Holt Issues, startet Container, setzt Labels und Board-Status. Schreibt selbst keinen Code.
-- **Job-Image** (`image/`): Claude Code, GitHub CLI, git, Node und Chromium (für Tests und Screenshots).
+- **Job-Image** (`image/`): Claude Code, GitHub CLI, git, Node, Python (uv) und Chromium (für Tests und Screenshots), dazu die Werkzeuge für die Plattform-Checks: `actionlint`, `check-jsonschema`, `hadolint`, `helm`, `kubeconform` und die Docker-CLI mit Compose-Plugin (nur für `docker compose config`, ohne Daemon).
 - **Playbook** (`playbooks/factory.md`): die festen Regeln für jeden Lauf. Stages melden, bei Unklarheit fragen statt raten, Pflicht-Checks, nie selbst mergen.
 - **Workflow** (`workflows/starter-kit/`): wie entwickelt wird. Standard ist der Workflow aus dem [AI Coding Starter Kit](https://github.com/AlexPEClub/ai-coding-starter-kit): `architecture → build → qa` auf Basis deiner Spec, mit getrennten Dateien pro Feature (`spec.md`, `design.md`, `qa-report.md`). Austauschbar, siehe [workflow.md](workflows/starter-kit/workflow.md).
-- **Stack-Packs** (`workflows/starter-kit/stacks/`): Regeln für einen bestimmten Stack (z. B. `nextjs`, `supabase`). Welche gelten, steht in `docs/stack.md` des Projekts. Die Factory ist stack-unabhängig.
-- **Lokale Skills** (`local-skills/`): `init` (Projekt aufsetzen inkl. Stack), `write-spec` (Spec im Interview erarbeiten), `to-factory` (an die Factory übergeben). Einmal pro Rechner installieren: `./scripts/install-local-skills.sh`.
+- **Stack-Packs** (`workflows/starter-kit/stacks/`): Regeln für einen bestimmten Stack (z. B. `nextjs`, `postgres`, `supabase`). Welche gelten, steht in `docs/stack.md` des Projekts. Die Factory ist stack-unabhängig.
+- **Betriebskonventionen** (`conventions/`): wie Factory-Projekte betrieben werden (Umgebungen, Orchestrierungs-Stufe, Secrets, Backup, Health, Observability), Vorlagen für `docs/operations.md` und `.factory/delivery.json` sowie die Plattform-Specs PROJ-1 bis PROJ-7. Die Pipelines selbst liegen im Repo [factory-pipelines](https://github.com/thorsten-reitz/factory-pipelines). Leitfaden: [conventions/README.md](conventions/README.md).
+- **Lokale Skills** (`local-skills/`): `init` (Projekt aufsetzen inkl. Stack und Betrieb), `write-spec` (Spec im Interview erarbeiten), `to-factory` (an die Factory übergeben). Einmal pro Rechner installieren: `./scripts/install-local-skills.sh`.
 - **Projekt-Vorlage**: [factory-template](https://github.com/AlexPEClub/factory-template), stack-unabhängig. Neues Projekt: `./scripts/new-project.sh mein-projekt`.
 
 ## Voraussetzungen
@@ -61,7 +62,7 @@ Danach:
 2. **GitHub-Login** auf dem Server: `gh auth login -s project`
 3. **Factory starten:** `systemctl restart software-factory`
 4. **Auf deinem Rechner:** `./scripts/install-local-skills.sh`, dann `FACTORY_SERVER=root@DEINE-IP ./scripts/new-project.sh mein-projekt`. Legt das Repo aus der Vorlage an und bindet es samt Labels und Kanban-Board an die Factory an. Ein bestehendes Repo bindest du stattdessen auf dem Server mit `./scripts/add-repo.sh dein-name/dein-repo` an.
-5. Im Projekt: Briefing in `docs/briefing.md` → `/init` → pro Feature `/write-spec` → `/to-factory`
+5. Im Projekt: Briefing in `docs/briefing.md` → `/init` (legt auch Betrieb und Plattform-Specs an) → Plattform-Specs mit `/to-factory` übergeben → pro Produkt-Feature `/write-spec` → `/to-factory`
 
 Die ausführliche Schritt-für-Schritt-Anleitung (inkl. Server bei Hostinger): [docs/hostinger-vps-setup.md](docs/hostinger-vps-setup.md).
 
@@ -94,7 +95,7 @@ Die Factory liest `.factory/setup.json` im Ziel-Repo:
 }
 ```
 
-`/init` legt sie passend zum Stack an. Braucht dein Stack eine andere Laufzeit als Node oder Python, ergänzt `/init` eine `.factory/Dockerfile`, die auf dem Factory-Image aufbaut.
+`/init` legt sie passend zum Stack an, einschließlich der Plattform-Checks (Schema von `.factory/delivery.json`, `actionlint`, später `docker compose config` usw.; Liste in [conventions/README.md](conventions/README.md#plattform-checks-in-factorysetupjson)). Die Betriebsschalter stehen getrennt davon in `.factory/delivery.json`. Braucht dein Stack eine andere Laufzeit als Node oder Python, ergänzt `/init` eine `.factory/Dockerfile`, die auf dem Factory-Image aufbaut.
 
 ## Sprache
 
