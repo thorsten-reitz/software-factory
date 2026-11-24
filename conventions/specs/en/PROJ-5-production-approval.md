@@ -9,7 +9,7 @@
 
 ## Prerequisites (human)
 - [ ] GitHub environment `production` with you as required reviewer, deployments from branch `main` only (created by the factory's `scripts/add-repo.sh`)
-- [ ] Machine identity for GitHub with OIDC auth, subject `repo:{{OWNER}}/{{REPO}}:environment:production`, read access to `production` only
+- [ ] Machine identity for GitHub with OIDC auth, subject `repo:{{OWNER}}/{{REPO}}:environment:production` (with IDs for repos created after 15 July 2026, see PROJ-4), read access to `production` only
 <!-- only if: production on its own VM -->
 - [ ] Production host ({{PRODUCTION_HOST}}) created via cloud-init from `factory-pipelines/templates/cloud-init/compose-host.yaml`
 <!-- only if: production on the factory server -->

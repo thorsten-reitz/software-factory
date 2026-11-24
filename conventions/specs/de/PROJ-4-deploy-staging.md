@@ -9,7 +9,7 @@
 
 ## Voraussetzungen (Mensch)
 - [ ] Infisical-Projekt `{{PROJECT}}` (Cloud EU) mit den Umgebungen `staging` und `production`
-- [ ] Maschinen-Identität für GitHub mit OIDC Auth, Subject `repo:{{OWNER}}/{{REPO}}:environment:staging` (bei neueren Repos mit IDs, siehe factory-pipelines README), Lesezugriff nur auf `staging`
+- [ ] Maschinen-Identität für GitHub mit OIDC Auth, Subject `repo:{{OWNER}}/{{REPO}}:environment:staging` (Repos, die nach dem 15. Juli 2026 angelegt wurden, haben ein Subject mit IDs: `repo:<owner>@<id>/<repo>@<id>:environment:staging`, Präfix per `gh api repos/{{OWNER}}/{{REPO}}/actions/oidc/customization/sub`), Lesezugriff nur auf `staging`
 - [ ] Variablen `INFISICAL_PROJECT_ID` und `INFISICAL_IDENTITY_ID` im GitHub-Repo gesetzt (Variablen, keine Secrets)
 - [ ] GitHub-Umgebung `staging` existiert (legt `scripts/add-repo.sh` der Factory an)
 <!-- nur wenn: staging auf dem Factory-Server -->
@@ -40,15 +40,16 @@
 - [ ] AK-5: Angenommen ein Deploy nach staging, dann kommentiert die Pipeline Umgebung, Digest und Health-Ergebnis am PR bzw. Commit. _(nach dem Merge)_
 - [ ] AK-6: Angenommen das Health-Gate schlägt nach einem Deploy fehl, dann rollt die Pipeline auf den vorherigen Digest zurück und öffnet ein Issue mit Label `deploy-failed`. _(nach dem Merge, sobald ein Deploy fehlschlägt; das Verhalten selbst ist im Selbsttest von factory-pipelines belegt)_
 <!-- nur wenn: staging-Daten seed -->
-- [ ] AK-7: Angenommen eine leere Datenbank, wenn der Befehl `seed` aus `.factory/setup.json` zweimal hintereinander läuft, dann enthält sie danach synthetische Beispieldaten ohne personenbezogene Daten und keine Duplikate.
+- [ ] AK-7: Angenommen `deploy/compose.yml`, dann enthält sie einen Dienst `seed` mit `profiles: [seed]`, demselben Image wie die App, Entrypoint `/factory/with-secrets` und Abhängigkeit von der Datenbank; sein Befehl (z. B. `npm run seed`) füllt eine leere Datenbank mit synthetischen Beispieldaten ohne personenbezogene Daten und erzeugt bei zweimaligem Lauf keine Duplikate (belegt durch einen Test).
 <!-- nur wenn: staging-Daten anonymized-copy -->
-- [ ] AK-7: Angenommen `deploy/anonymize.sql`, dann überschreibt es jede Spalte mit personenbezogenen Daten (laut Datenmodell) mit synthetischen Werten, und `docs/operations.md` begründet die anonymisierte Kopie.
+- [ ] AK-7: Angenommen `deploy/anonymize.sql`, dann überschreibt es jede Spalte mit personenbezogenen Daten (laut Datenmodell) mit synthetischen Werten, und `docs/operations.md` begründet die anonymisierte Kopie. (factory-pipelines v0.1.1 spielt die Kopie noch nicht ein.)
 - [ ] AK-8: Angenommen das Repo, dann enthält es keinen Secret-Wert, und jeder Secret-Name, den die App erwartet, steht in `docs/operations.md`.
 
 ## Edge Cases
 - EC-1: Infisical ist beim Deploy nicht erreichbar → Deploy bricht vor dem Umschalten ab, die laufende Version bleibt, Issue `deploy-failed`.
 - EC-2: Derselbe Digest wird zweimal ausgerollt → keine Änderung, kein Neustart der Datenbank.
 - EC-3: Eine Migration schlägt fehl → kein Umschalten, die alte Version läuft weiter.
+- EC-4: Der Dienst `seed` läuft bei jedem staging-Deploy erneut → vorhandene Beispieldaten bleiben unverändert, keine Duplikate.
 
 ## Technische Anforderungen (optional)
 - Vorlagen aus `factory-pipelines` in Version {{PIPELINES_VERSION}} (`templates/compose.yml`), keine eigene Deploy-Logik im Projekt.

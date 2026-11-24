@@ -24,7 +24,7 @@ Interview the user until you reach a **complete shared understanding**:
 3. Talk to the user in the language they write in. Everything you write into the project follows the **project language** (next section).
 4. **Find the factory repo.** This skill is a symlink into the Software Factory repo. Resolve it: `FACTORY_REPO="$(cd "$(dirname "$(realpath ~/.claude/skills/init/SKILL.md)")/../.." && pwd)"` and check that `$FACTORY_REPO/conventions/README.md` exists. Read that guide completely: it is the basis for the Operations section. If it cannot be found, ask the user for the path of their Software Factory checkout.
    Below, `conventions/…` always means `$FACTORY_REPO/conventions/…`.
-5. **Pipeline templates** come from the public repo `thorsten-reitz/factory-pipelines` at the pinned version **`v0.1.0`** (`PIPELINES_VERSION`). Fetch a template with `gh api -H "Accept: application/vnd.github.raw" "repos/thorsten-reitz/factory-pipelines/contents/<path>?ref=v0.1.0"`.
+5. **Pipeline templates** come from the public repo `thorsten-reitz/factory-pipelines` at the pinned version **`v0.1.1`** (`PIPELINES_VERSION`). Fetch a template with `gh api -H "Accept: application/vnd.github.raw" "repos/thorsten-reitz/factory-pipelines/contents/<path>?ref=v0.1.1"`.
 
 ## Mandatory First Question: Project Language
 The project language decides what language the factory writes in for this project: PRD and all other documents, specs, issue comments, pull requests and the text of commit messages.
@@ -118,7 +118,7 @@ After the documents are approved:
        "typecheck": "npx tsc --noEmit",
        "test": "npm test",
        "build": "npm run build",
-       "delivery-config": "check-jsonschema --schemafile https://raw.githubusercontent.com/thorsten-reitz/factory-pipelines/v0.1.0/schema/delivery.schema.json .factory/delivery.json",
+       "delivery-config": "check-jsonschema --schemafile https://raw.githubusercontent.com/thorsten-reitz/factory-pipelines/v0.1.1/schema/delivery.schema.json .factory/delivery.json",
        "workflows": "actionlint"
      }
    }
@@ -130,7 +130,7 @@ After the documents are approved:
    - `environments` gets **only `test`** for now. `staging` and `production` are added by PROJ-4 and PROJ-5 once host and secrets exist; otherwise the first push to `main` would try to deploy. The planned domains, ports and hosts are in `docs/operations.md`.
    - No state → `"state": []` and `"backup": { "enabled": false }`.
    - Keep `$schema`. Validate: `check-jsonschema --schemafile <URL from the check> .factory/delivery.json`.
-4. **Write the caller workflow `.github/workflows/delivery.yml`** from the template `templates/delivery.yml` of factory-pipelines `v0.1.0` (it calls `thorsten-reitz/factory-pipelines/.github/workflows/delivery.yml@v0.1.0` with `config: .factory/delivery.json`). Change one thing: under `on:` keep only `workflow_dispatch` (with its inputs) and add the comment `# pull_request and push are enabled by PROJ-2 (CI)` in the project language. Without a Dockerfile and test environment every PR would fail; PROJ-2 builds them and switches the triggers on in its own PR.
+4. **Write the caller workflow `.github/workflows/delivery.yml`** from the template `templates/delivery.yml` of factory-pipelines `v0.1.1` (it calls `thorsten-reitz/factory-pipelines/.github/workflows/delivery.yml@v0.1.1` with `config: .factory/delivery.json`). Change one thing: under `on:` keep only `workflow_dispatch` (with its inputs) and add the comment `# pull_request and push are enabled by PROJ-2 (CI)` in the project language. Without a Dockerfile and test environment every PR would fail; PROJ-2 builds them and switches the triggers on in its own PR.
 5. **Write `.github/CODEOWNERS`** from the template `templates/CODEOWNERS`, with `@OWNER` replaced by the user's GitHub login (`gh api user --jq .login`). It covers `/.github/`, `/.factory/delivery.json` and `/deploy/`.
 6. **Run every check once locally** and fix until all pass, including `delivery-config` and `workflows`.
 7. **Runtime not covered by the factory?** The factory job image has Node and Python (uv). For anything else (PHP, Ruby, Go, Java …) create `.factory/Dockerfile`:

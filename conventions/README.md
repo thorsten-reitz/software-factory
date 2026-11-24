@@ -25,11 +25,11 @@ Leitfaden für den Betrieb jedes Projekts, das die Software Factory baut. Hinter
 |---|---|---|
 | `docs/operations.md` | `/init`, ergänzt von PROJ-1 und jedem Feature mit neuem Zustand oder Secret | Betriebsentscheidungen, Abweichungen, Secret-Namen, Runbooks |
 | `.factory/delivery.json` | `/init`, ergänzt von den Plattform-Specs | Betriebsschalter, Schema: `factory-pipelines/schema/delivery.schema.json` |
-| `.factory/setup.json` | `/init` | `install`, `checks` (inkl. Plattform-Checks), `e2e`, `seed` |
-| `.github/workflows/delivery.yml` | `/init` (nur manueller Start), PROJ-2 schaltet PR und Push ein | Aufruf von `thorsten-reitz/factory-pipelines/.github/workflows/delivery.yml@v0.1.0` |
+| `.factory/setup.json` | `/init` | `install`, `checks` (inkl. Plattform-Checks), `e2e`, optional `seed` für die lokale Entwicklung |
+| `.github/workflows/delivery.yml` | `/init` (nur manueller Start), PROJ-2 schaltet PR und Push ein | Aufruf von `thorsten-reitz/factory-pipelines/.github/workflows/delivery.yml@v0.1.1` |
 | `.github/CODEOWNERS` | `/init` | Review für `.github/`, `.factory/delivery.json`, `deploy/` |
 | `Dockerfile`, `.dockerignore`, `deploy/compose.test.yml` | PROJ-2 | Image und Test-Umgebung in CI |
-| `deploy/compose.yml` | PROJ-4 | staging und production (Stufe compose) |
+| `deploy/compose.yml` | PROJ-4 | staging und production (Stufe compose), mit den Diensten `migrate` und, bei synthetischen staging-Daten, `seed` |
 | `flags/flags.json` | erstes Feature hinter einem Flag | OpenFeature/flagd-Flags |
 
 ### Warum der Aufruf-Workflow zuerst nur manuell startet
@@ -43,12 +43,14 @@ Aus demselben Grund enthält `.factory/delivery.json` nach `/init` unter `enviro
 | Umgebung | Läuft | Auslöser | Daten |
 |---|---|---|---|
 | test | nur in CI (GitHub-Runner, Wegwerf-Dienste aus `deploy/compose.test.yml`) | jeder PR | Testwerte |
-| staging | Vorschlag: Factory-Server | Push auf `main` (`autoDeploy`) | `seed` (Standard) oder `anonymized-copy` |
+| staging | Vorschlag: Factory-Server | Push auf `main` (`autoDeploy`) | `seed` (Standard, Dienst `seed` in `deploy/compose.yml`) oder `anonymized-copy` (noch nicht in factory-pipelines) |
 | production | Vorschlag: eigene VM | Freigabe an der GitHub-Umgebung `production` | echte Daten |
 
 production auf dem Factory-Server ist erlaubt. Dann gilt: Ressourcen werden mit den Agent-Läufen geteilt, und ein Ausfall des Servers trifft Factory, Monitoring und production gleichzeitig. Das steht dann als Abweichung in `docs/operations.md`.
 
-`anonymized-copy` für staging nur mit Hinweis auf die DSGVO-Folgen (besonders, wenn staging auf dem Factory-Server läuft) und darauf, dass das Anonymisierungs-SQL bei jeder Schemaänderung mitgepflegt werden muss.
+**Synthetische Daten (`seed`):** Auf dem Host liegt kein Quellcode, `.factory/setup.json` → `seed` läuft dort also nicht. Stattdessen definiert `deploy/compose.yml` einen Dienst `seed` mit `profiles: [seed]`, demselben Image, Entrypoint `/factory/with-secrets` und einem idempotenten Befehl (z. B. `npm run seed`), siehe `templates/compose.yml` in factory-pipelines. `factory-host` startet ihn bei jedem staging-Deploy nach den Migrationen, wenn `environments.staging.data` `seed` ist (Standard). Ohne Dienst `seed` passiert nichts. Ein `seed`-Befehl in `package.json` bzw. `.factory/setup.json` für die lokale Entwicklung kann bleiben.
+
+`anonymized-copy` ist in factory-pipelines v0.1.1 noch nicht umgesetzt (der Deploy vermerkt es nur im Log). Für staging nur mit Hinweis auf die DSGVO-Folgen (besonders, wenn staging auf dem Factory-Server läuft) und darauf, dass das Anonymisierungs-SQL bei jeder Schemaänderung mitgepflegt werden muss.
 
 ## Orchestrierungs-Stufe wählen
 
@@ -150,7 +152,7 @@ Produkt-Features ab PROJ-8, starten sobald PROJ-2 fertig ist
 | `{{STATE}}` | Liste der `state`-Einträge, z. B. „Postgres `db`, Volume `uploads`“ |
 | `{{HEALTH_COMPONENTS}}` | Liste der Komponenten, z. B. „`db` (kritisch), `mail`“ |
 | `{{WATCHDOG}}` | z. B. „healthchecks.io“, „healthchecks.io und GitHub-Actions-Probe alle 30 Minuten“ |
-| `{{PIPELINES_VERSION}}` | Version von factory-pipelines im Aufruf-Workflow, derzeit `v0.1.0` |
+| `{{PIPELINES_VERSION}}` | Version von factory-pipelines im Aufruf-Workflow, derzeit `v0.1.1` |
 
 Der Kommentar `<!-- nur wenn: … -->` bzw. `<!-- only if: … -->` gilt für die Zeile direkt darunter. Trifft die Bedingung nicht zu, entfernt `/init` die Zeile, sonst nur den Kommentar. Danach nummeriert `/init` die Akzeptanzkriterien lückenlos durch. Kursive Hinweise (`_…_`) in den Vorlagen sind Ausfüllhilfen und werden ersetzt.
 
@@ -160,22 +162,23 @@ Die Checks laufen in der Factory (`factory-verify`) und in CI (Job „Checks“ 
 
 | Check | Befehl | Ab |
 |---|---|---|
-| `delivery-config` | `check-jsonschema --schemafile https://raw.githubusercontent.com/thorsten-reitz/factory-pipelines/v0.1.0/schema/delivery.schema.json .factory/delivery.json` | `/init` |
+| `delivery-config` | `check-jsonschema --schemafile https://raw.githubusercontent.com/thorsten-reitz/factory-pipelines/v0.1.1/schema/delivery.schema.json .factory/delivery.json` | `/init` |
 | `workflows` | `actionlint` | `/init` |
 | `dockerfile` | `hadolint --failure-threshold error Dockerfile` | PROJ-2 |
 | `compose-test` | `IMAGE=check docker compose -f deploy/compose.test.yml config -q` | PROJ-2 |
 | `compose` | `IMAGE=check PROJECT_ENV=check PORT=5100 SECRETS_DIR=/tmp FACTORY_BIN=/tmp docker compose -f deploy/compose.yml config -q` | PROJ-4 (Stufe compose) |
-| `helm` | `helm lint deploy/helm/app && helm template deploy/helm/app \| kubeconform -strict -summary -ignore-missing-schemas` | PROJ-4 (Stufe k3s) |
+| `helm` | `helm lint deploy/helm/app && helm template deploy/helm/app \| kubeconform -strict -summary -ignore-missing-schemas` | PROJ-4 (Stufe k3s), erst sobald factory-pipelines die Stufe k3s ausliefert (v0.3) |
 
 Die Schema-Version im Check `delivery-config` ist dieselbe wie im Aufruf-Workflow. Hebt Renovate die Version von factory-pipelines an, gehört die Zeile in denselben PR. Für die Stufe kamal folgt ein Check mit factory-pipelines v0.2.
 
-Das Job-Image der Factory enthält alle Werkzeuge dafür (`actionlint`, `check-jsonschema`, `hadolint`, `helm`, `kubeconform`, Docker-CLI mit Compose-Plugin ohne Daemon).
+Das Job-Image der Factory enthält alle Werkzeuge dafür (`actionlint`, `check-jsonschema`, `hadolint`, `helm`, `kubeconform`, Docker-CLI mit Compose-Plugin ohne Daemon). In CI installiert factory-pipelines (ab v0.1.1) `actionlint`, `check-jsonschema` 0.33.0 und `hadolint` 2.12.0 selbst, sobald ein Check sie verwendet; Docker Compose ist auf den Runnern vorhanden. `helm` und `kubeconform` installiert die Pipeline noch nicht, sie kommen mit der Stufe k3s.
 
 ## Was der Mensch tut
 
 Einmal pro Projekt bzw. Server, nichts davon per SSH:
 
 - Infisical: Projekt (EU), Umgebungen `staging` und `production`, Identitäten (OIDC für GitHub, Universal Auth je Host), Secrets eintragen; Variablen `INFISICAL_PROJECT_ID` und `INFISICAL_IDENTITY_ID` im GitHub-Repo setzen.
+  **OIDC-Subject:** Repos, die nach dem 15. Juli 2026 angelegt wurden, haben ein Subject mit IDs (`repo:<owner>@<id>/<repo>@<id>:environment:staging` statt `repo:<owner>/<repo>:environment:staging`). Das richtige Präfix zeigt `gh api repos/<owner>/<repo>/actions/oidc/customization/sub` (`sub_claim_prefix`).
 - S3-Bucket und Zugangsschlüssel anlegen, Offline-Kopie des Backup-Schlüssels ablegen.
 - Server per cloud-init (`factory-pipelines/templates/cloud-init/`) anlegen bzw. den Factory-Server mit `host/install.sh` vorbereiten, DNS-Einträge setzen.
 - healthchecks.io-Konto und Checks anlegen.

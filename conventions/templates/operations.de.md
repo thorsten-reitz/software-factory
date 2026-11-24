@@ -52,8 +52,10 @@ Server bereitstellen: {{PROVISIONING}} (Vorlage `factory-pipelines/templates/clo
 - **Restic-Repository:** `s3:<endpoint>/<bucket>/{{PROJECT}}/<umgebung>`
 - **Offline-Kopie von `RESTIC_PASSWORD`:** _Ort, z. B. „Passwortmanager von …, Eintrag {{PROJECT}} restic“ (nie den Schlüssel selbst)_
 - **staging-Daten:** {{STAGING_DATA}}
+<!-- nur wenn: staging-Daten seed -->
+- **Seed:** Dienst `seed` in `deploy/compose.yml` (Profil `seed`, idempotent), läuft bei jedem staging-Deploy nach den Migrationen. Nie personenbezogene Daten.
 <!-- nur wenn: staging-Daten anonymized-copy -->
-- **Anonymisierung:** `deploy/anonymize.sql`, wird bei jeder Schemaänderung mitgepflegt. DSGVO: _Begründung, warum eine anonymisierte Kopie nötig und zulässig ist_
+- **Anonymisierung:** `deploy/anonymize.sql`, wird bei jeder Schemaänderung mitgepflegt. In factory-pipelines v0.1.1 noch nicht umgesetzt. DSGVO: _Begründung, warum eine anonymisierte Kopie nötig und zulässig ist_
 
 ## 4. Health
 
@@ -121,7 +123,7 @@ _Verfügbarkeitsziel, Aufbewahrungspflichten, Datenstandort, Kundenvorgaben. Jew
 ## 11. Einmalige Schritte (Mensch)
 
 - [ ] Infisical-Projekt `{{PROJECT}}` (EU) mit Umgebungen `staging` und `production`
-- [ ] OIDC-Identität für GitHub, Variablen `INFISICAL_PROJECT_ID` und `INFISICAL_IDENTITY_ID` im Repo
+- [ ] OIDC-Identität für GitHub (Subject-Präfix: `gh api repos/{{OWNER}}/{{REPO}}/actions/oidc/customization/sub`), Variablen `INFISICAL_PROJECT_ID` und `INFISICAL_IDENTITY_ID` im Repo
 - [ ] Hosts bereit (cloud-init bzw. `host/install.sh` auf dem Factory-Server), Host-Identitäten
 - [ ] DNS für {{STAGING_DOMAIN}} und {{PRODUCTION_DOMAIN}}
 - [ ] S3-Bucket, Zugangsschlüssel, Offline-Kopie von `RESTIC_PASSWORD`

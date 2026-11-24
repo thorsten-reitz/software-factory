@@ -52,8 +52,10 @@ Server provisioning: {{PROVISIONING}} (template `factory-pipelines/templates/clo
 - **Restic repository:** `s3:<endpoint>/<bucket>/{{PROJECT}}/<environment>`
 - **Offline copy of `RESTIC_PASSWORD`:** _location, e.g. "password manager of …, entry {{PROJECT}} restic" (never the key itself)_
 - **Staging data:** {{STAGING_DATA}}
+<!-- only if: staging data seed -->
+- **Seed:** service `seed` in `deploy/compose.yml` (profile `seed`, idempotent), runs on every staging deploy after the migrations. Never personal data.
 <!-- only if: staging data anonymized-copy -->
-- **Anonymization:** `deploy/anonymize.sql`, updated with every schema change. GDPR: _why an anonymized copy is needed and permitted_
+- **Anonymization:** `deploy/anonymize.sql`, updated with every schema change. Not implemented yet in factory-pipelines v0.1.1. GDPR: _why an anonymized copy is needed and permitted_
 
 ## 4. Health
 
@@ -121,7 +123,7 @@ _Availability target, retention obligations, data location, customer requirement
 ## 11. One-time steps (human)
 
 - [ ] Infisical project `{{PROJECT}}` (EU) with environments `staging` and `production`
-- [ ] OIDC identity for GitHub, variables `INFISICAL_PROJECT_ID` and `INFISICAL_IDENTITY_ID` in the repo
+- [ ] OIDC identity for GitHub (subject prefix: `gh api repos/{{OWNER}}/{{REPO}}/actions/oidc/customization/sub`), variables `INFISICAL_PROJECT_ID` and `INFISICAL_IDENTITY_ID` in the repo
 - [ ] Hosts ready (cloud-init, or `host/install.sh` on the factory server), host identities
 - [ ] DNS for {{STAGING_DOMAIN}} and {{PRODUCTION_DOMAIN}}
 - [ ] S3 bucket, access keys, offline copy of `RESTIC_PASSWORD`

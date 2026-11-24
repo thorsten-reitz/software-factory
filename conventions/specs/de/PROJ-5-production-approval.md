@@ -9,7 +9,7 @@
 
 ## Voraussetzungen (Mensch)
 - [ ] GitHub-Umgebung `production` mit dir als Required Reviewer, Deployments nur vom Branch `main` (legt `scripts/add-repo.sh` der Factory an)
-- [ ] Maschinen-Identität für GitHub mit OIDC Auth, Subject `repo:{{OWNER}}/{{REPO}}:environment:production`, Lesezugriff nur auf `production`
+- [ ] Maschinen-Identität für GitHub mit OIDC Auth, Subject `repo:{{OWNER}}/{{REPO}}:environment:production` (bei Repos ab dem 15. Juli 2026 mit IDs, siehe PROJ-4), Lesezugriff nur auf `production`
 <!-- nur wenn: production auf eigener VM -->
 - [ ] production-Host ({{PRODUCTION_HOST}}) per cloud-init aus `factory-pipelines/templates/cloud-init/compose-host.yaml` angelegt
 <!-- nur wenn: production auf dem Factory-Server -->

@@ -9,7 +9,7 @@
 
 ## Prerequisites (human)
 - [ ] Infisical project `{{PROJECT}}` (Cloud EU) with the environments `staging` and `production`
-- [ ] Machine identity for GitHub with OIDC auth, subject `repo:{{OWNER}}/{{REPO}}:environment:staging` (newer repos use IDs, see the factory-pipelines README), read access to `staging` only
+- [ ] Machine identity for GitHub with OIDC auth, subject `repo:{{OWNER}}/{{REPO}}:environment:staging` (repos created after 15 July 2026 use a subject with IDs: `repo:<owner>@<id>/<repo>@<id>:environment:staging`, prefix via `gh api repos/{{OWNER}}/{{REPO}}/actions/oidc/customization/sub`), read access to `staging` only
 - [ ] Variables `INFISICAL_PROJECT_ID` and `INFISICAL_IDENTITY_ID` set in the GitHub repo (variables, not secrets)
 - [ ] GitHub environment `staging` exists (created by the factory's `scripts/add-repo.sh`)
 <!-- only if: staging on the factory server -->
@@ -40,15 +40,16 @@
 - [ ] AC-5: Given a deploy to staging, then the pipeline comments environment, digest and health result on the PR or commit. _(after merge)_
 - [ ] AC-6: Given the health gate fails after a deploy, then the pipeline rolls back to the previous digest and opens an issue labelled `deploy-failed`. _(after merge, once a deploy fails; the behaviour itself is covered by the factory-pipelines self-test)_
 <!-- only if: staging data seed -->
-- [ ] AC-7: Given an empty database, when the `seed` command from `.factory/setup.json` runs twice in a row, then it contains synthetic sample data without personal data and without duplicates.
+- [ ] AC-7: Given `deploy/compose.yml`, then it has a service `seed` with `profiles: [seed]`, the same image as the app, entrypoint `/factory/with-secrets` and a dependency on the database; its command (e.g. `npm run seed`) fills an empty database with synthetic sample data without personal data and creates no duplicates when run twice (shown by a test).
 <!-- only if: staging data anonymized-copy -->
-- [ ] AC-7: Given `deploy/anonymize.sql`, then it overwrites every column with personal data (per the data model) with synthetic values, and `docs/operations.md` gives the reason for the anonymized copy.
+- [ ] AC-7: Given `deploy/anonymize.sql`, then it overwrites every column with personal data (per the data model) with synthetic values, and `docs/operations.md` gives the reason for the anonymized copy. (factory-pipelines v0.1.1 does not load the copy yet.)
 - [ ] AC-8: Given the repo, then it contains no secret value, and every secret name the app expects is listed in `docs/operations.md`.
 
 ## Edge Cases
 - EC-1: Infisical is unreachable during the deploy → the deploy stops before switching over, the running version stays, issue `deploy-failed`.
 - EC-2: The same digest is deployed twice → no change, no restart of the database.
 - EC-3: A migration fails → no switch-over, the old version keeps running.
+- EC-4: The `seed` service runs again on every staging deploy → existing sample data stays unchanged, no duplicates.
 
 ## Technical Requirements (optional)
 - Templates from `factory-pipelines` at version {{PIPELINES_VERSION}} (`templates/compose.yml`), no deploy logic of its own in the project.

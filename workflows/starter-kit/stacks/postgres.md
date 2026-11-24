@@ -30,7 +30,7 @@ Regeln:
 - `db` ist eine kritische Komponente: `/readyz` und `/health` prüfen die Verbindung (`SELECT 1` mit Zeitlimit) und ob die neueste Migration im Image angewendet ist.
 
 ## Seeds und staging-Daten
-- Befehl `seed` in `.factory/setup.json`: synthetische Beispieldaten, idempotent, **nie personenbezogene Daten**.
+- Synthetische Beispieldaten über einen idempotenten Befehl im Image (z. B. `npm run seed`), **nie personenbezogene Daten**. Auf staging startet ihn der Dienst `seed` in `deploy/compose.yml` (Profil `seed`) bei jedem Deploy nach den Migrationen; lokal kann derselbe Befehl als `seed` in `.factory/setup.json` stehen.
 - Bei `environments.staging.data: "anonymized-copy"`: `deploy/anonymize.sql` überschreibt jede Spalte mit personenbezogenen Daten. Jede Migration, die eine solche Spalte hinzufügt, ergänzt im selben PR `deploy/anonymize.sql`.
 
 ## Tests in der Factory
