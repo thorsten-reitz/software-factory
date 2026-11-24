@@ -1,34 +1,25 @@
-# Software Factory auf einem Hostinger VPS einrichten
+# Software Factory auf einem VPS (Beispiel hier: Hostinger) einrichten
 
 Schritt für Schritt vom leeren Server bis zum ersten Pull Request, den die Factory für dich entwickelt.
-
-> 🚧 **Erste Version, nicht production-ready.** Die Factory ist ein funktionierender Startpunkt zum Ausprobieren und Weiterentwickeln. Lass sie zuerst auf Test-Projekten laufen, bevor du ihr echte Kundenprojekte gibst.
 
 **Dauer:** etwa 30–45 Minuten, davon viel Warten auf Installationen.
 
 **Du brauchst:**
 
-- einen Hostinger VPS (empfohlen: **KVM 2** mit 2 CPU-Kernen und 8 GB RAM)
+- einen VPS (empfohlen: 2 CPU-Kerne und 8 GB RAM)
 - ein Claude-Abo (Pro, Max, Team oder Enterprise) **oder** einen Anthropic-API-Key
 - einen GitHub-Account
 - auf deinem Rechner: [Claude Code](https://code.claude.com), `git` und die [GitHub CLI](https://cli.github.com) (`gh`)
 
 ---
 
-## 1. Den Server bestellen
+## 1. Den Server bereitstellen
 
-1. Geh auf **[hostinger.com/alexclaude](https://hostinger.com/alexclaude)** und wähl den **KVM 2**.
-2. Wähl die Laufzeit. Ich empfehle mindestens 12 Monate; mit 24 Monaten sparst du am meisten. Bei Jahresplänen bekommst du außerdem eine Domain gratis dazu.
-3. Gib im Warenkorb den Code **`ALEXCLAUDE`** ein. Damit sparst du noch einmal 10 % auf den aktuellen Preis.
-4. Bei der Einrichtung im hPanel wählst du als Betriebssystem die Vorlage **Ubuntu 24.04 mit Claude Code**. Lege dabei ein sicheres **Root-Passwort** fest (oder hinterlege direkt deinen SSH-Key).
-
-Hostinger hat eine 30-Tage-Geld-zurück-Garantie. Falls ein eigener Server doch nichts für dich ist, kannst du ihn innerhalb dieser Zeit zurückgeben.
-
-> Du kannst auch einen anderen Ubuntu-24.04-Server nehmen. Die Anleitung ist auf Hostinger getestet; dort ist Claude Code durch die Vorlage schon installiert.
+ Du kannst einen beliebigen Ubuntu-24.04-Server nehmen. Die Anleitung ist auf Hostinger getestet; dort ist Claude Code durch die Vorlage schon installiert.
 
 ## 2. Mit dem Server verbinden
 
-Die IP-Adresse deines Servers findest du im hPanel in der Übersicht deines VPS. Öffne auf deinem Rechner ein Terminal:
+Die IP-Adresse deines Servers findest du beispielsweise im hPanel in der Übersicht deines VPS. Öffne auf deinem Rechner ein Terminal:
 
 ```bash
 ssh root@DEINE-SERVER-IP
