@@ -22,7 +22,7 @@ label "factory:accepting"      "1D76DB" "Factory: unabhängige Abnahme läuft"
 label "factory:review"         "E99695" "Factory: PR bereit, du bist dran"
 label "factory:done"           "0E8A16" "Factory: gemergt"
 label "factory:failed"         "D93F0B" "Factory: technisch hängen geblieben"
-# Betrieb: Alarme (Runner) und Deploy-Fehler (Pipeline). Diese Issues bearbeitet die Factory nie von selbst.
+# Betrieb: Alarme (Runner) und Deploy-Fehler (Pipeline). Sie bekommen nie automatisch das Label factory, übergeben wird von Hand.
 label "incident"               "E11D21" "Alarm aus Monitoring oder Watchdog, nie automatisch Aufgabe der Factory"
 label "deploy-failed"          "B60205" "Deploy fehlgeschlagen, von der Pipeline gemeldet"
 # Labels aus der ersten Version entfernen

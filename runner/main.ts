@@ -296,10 +296,13 @@ export const isFactoryComment = (c: Comment) => !!FACTORY_LOGIN && loginOf(c) ==
 export const isTrusted = (cfg: Config, login: string) =>
   !!login && (login === FACTORY_LOGIN || (cfg.allowedUsers ?? []).some((u) => u.toLowerCase() === login.toLowerCase()));
 
+/** Kommentar des Incident-Intakes (Alarm vorbei, doppelt): kein Status der Factory und keine Antwort eines Menschen. */
+const isIntakeComment = (c: Comment) => c.body.includes(`${MARK}incident:`);
+
 /** Letzter Kommentar der Factory: Status und Phase aus dem Marker. */
 export function lastFactoryMarker(issue: Issue): { status: string; phase?: Phase } | null {
   for (let i = issue.comments.length - 1; i >= 0; i--) {
-    if (!isFactoryComment(issue.comments[i])) continue;
+    if (!isFactoryComment(issue.comments[i]) || isIntakeComment(issue.comments[i])) continue;
     const m = issue.comments[i].body.match(/<!-- software-factory:(\w+)(?::(\w+))? -->/);
     if (m) return { status: m[1], phase: m[2] as Phase | undefined };
   }
@@ -319,7 +322,7 @@ export function reworksSinceApproval(issue: Issue): number {
 /** Kommentare berechtigter Menschen nach dem letzten Kommentar der Factory. */
 export function humanCommentsSinceFactory(cfg: Config, issue: Issue): Comment[] {
   let last = -1;
-  issue.comments.forEach((c, i) => { if (isFactoryComment(c)) last = i; });
+  issue.comments.forEach((c, i) => { if (isFactoryComment(c) && !isIntakeComment(c)) last = i; });
   return issue.comments.slice(last + 1).filter((c) => !c.body.includes(MARK) && isTrusted(cfg, loginOf(c)));
 }
 
@@ -854,16 +857,17 @@ async function maybeImprove(cfg: Config, freeSlots: number) {
 // ---------- Incident-Intake und Heartbeat ----------
 // Bei jedem Durchlauf: aktive Alarme von healthchecks.io (Checks mit Status "down") und Grafana (Alertmanager-API)
 // holen und je Alarm genau ein offenes Issue mit Label "incident" im Repo des Projekts halten. Ist der Alarm vorbei,
-// kommentiert und schließt der Runner das Issue. Diese Issues bekommen nie das Label "factory".
+// kommentiert und schließt der Runner das Issue. Der Intake setzt nie das Label "factory": Ob die Factory einen
+// Incident bearbeitet, entscheidet der Mensch, indem er das Label setzt. Solange sie daran arbeitet, kommentiert der
+// Intake die Erholung nur einmal und lässt das Issue offen; Labels fasst er nie an.
 // Nur lesend: kein Webhook, kein GitHub-Token bei einem Dritten.
-
-/** Labels, mit denen ein Issue nie als Aufgabe der Factory gilt */
-export const NEVER_FACTORY = ["incident", "deploy-failed"];
-export const isFactoryWork = (issue: { labels: { name: string }[] }) => !issue.labels.some((l) => NEVER_FACTORY.includes(l.name));
 
 export type IncidentSource = IncidentInfo["source"];
 export type Alert = IncidentInfo & { key: string };
-type IncidentIssue = { number: number; body: string; author: { login: string } | null; createdAt: string };
+type IncidentIssue = { number: number; body: string; author: { login: string } | null; createdAt: string; labels?: { name: string }[] };
+/** Vom Menschen an die Factory übergeben und noch nicht fertig */
+const handedToFactory = (cfg: Config, i: { labels?: { name: string }[] }) =>
+  (i.labels ?? []).some((l) => l.name === cfg.label) && stageOf({ labels: i.labels ?? [] }) !== "done";
 
 const INCIDENT_LABEL = "incident";
 const INCIDENT_MARK = /<!-- software-factory:incident:([A-Za-z0-9_-]+) -->/;
@@ -952,8 +956,11 @@ export async function fetchGrafanaAlerts(cfg: Config): Promise<Alert[] | null> {
 export const incidentRepo = (cfg: Config, project: string) =>
   (project && cfg.incidents?.projects?.[project]) || cfg.incidents?.fallbackRepo || "";
 
-/** Issues, die der Runner für einen Alarm angelegt hat und die er noch einmal anlegen würde: Schlüssel → Repo und Nummer. */
-type IncidentState = Record<string, { repo: string; issue: number }>;
+/**
+ * Issues, die der Runner für einen Alarm angelegt hat und die er noch einmal anlegen würde: Schlüssel → Repo und Nummer.
+ * `recovered`: Alarm vorbei, Issue bleibt offen, weil die Factory daran arbeitet (Erholung schon kommentiert).
+ */
+type IncidentState = Record<string, { repo: string; issue: number; recovered?: boolean }>;
 const incidentStateFile = (cfg: Config) => join(cfg.dataDir, "incidents.json");
 function getIncidentState(cfg: Config): IncidentState {
   try { return JSON.parse(readFileSync(incidentStateFile(cfg), "utf8")); } catch { return {}; }
@@ -987,19 +994,23 @@ export async function syncIncidents(cfg: Config, results: { source: IncidentSour
   for (const repo of repos) {
     try {
       const open: IncidentIssue[] = JSON.parse(await gh(["issue", "list", "-R", repo, "--label", INCIDENT_LABEL, "--state", "open",
-        "--json", "number,body,author,createdAt", "--limit", "100"]));
+        "--json", "number,body,author,createdAt,labels", "--limit", "100"]));
       // Nur Issues, die der Runner selbst angelegt hat (wie bei den Markern in Kommentaren)
       const byKey = new Map<string, IncidentIssue[]>();
       for (const i of open.filter((i) => !!FACTORY_LOGIN && i.author?.login === FACTORY_LOGIN)) {
         const key = (i.body ?? "").match(INCIDENT_MARK)?.[1];
         if (key) byKey.set(key, [...(byKey.get(key) ?? []), i].sort((x, y) => x.number - y.number));
       }
+      // Erholt und an die Factory übergeben, inzwischen geschlossen: nicht mehr merken
+      for (const [key, s] of Object.entries(state)) {
+        if (s.recovered && s.repo === repo && !byKey.get(key)?.some((i) => i.number === s.issue)) delete state[key];
+      }
       const t = texts(await projectLanguage(repo));
 
       for (const a of [...active.values()].filter((a) => incidentRepo(cfg, a.project) === repo)) {
         const [keep, ...duplicates] = byKey.get(a.key) ?? [];
         if (keep) {
-          for (const d of duplicates) {
+          for (const d of duplicates.filter((d) => !handedToFactory(cfg, d))) {
             await gh(["issue", "comment", String(d.number), "-R", repo, "--body-file", "-"], `${MARK}incident:duplicate -->\n${t.incidentDuplicate(keep.number)}`);
             await gh(["issue", "close", String(d.number), "-R", repo, "--reason", "not planned"]);
             log("incident:duplicate-closed", { repo, issue: d.number, keep: keep.number, key: a.key });
@@ -1017,16 +1028,26 @@ export async function syncIncidents(cfg: Config, results: { source: IncidentSour
         log("incident:opened", { repo, issue, key: a.key, source: a.source, title: a.title });
       }
 
-      // Erholt: offene Issues ohne aktiven Alarm schließen, aber nur wenn ihre Quelle erreichbar war
+      // Erholt: offene Issues ohne aktiven Alarm schließen, aber nur wenn ihre Quelle erreichbar war.
+      // Arbeitet die Factory daran, nur einmal kommentieren und offen lassen.
       for (const [key, issues] of byKey) {
         const source = sourceOfKey(key);
         if (active.has(key) || !source || !reachable.has(source)) continue;
+        let keepOpen = false;
         for (const i of issues) {
+          if (handedToFactory(cfg, i)) {
+            keepOpen = true;
+            if (state[key]?.recovered && state[key].issue === i.number) continue;
+            await gh(["issue", "comment", String(i.number), "-R", repo, "--body-file", "-"], `${MARK}incident:resolved -->\n${t.incidentResolvedOpen(source)}`);
+            state[key] = { repo, issue: i.number, recovered: true };
+            log("incident:resolved-open", { repo, issue: i.number, key });
+            continue;
+          }
           await gh(["issue", "comment", String(i.number), "-R", repo, "--body-file", "-"], `${MARK}incident:resolved -->\n${t.incidentResolved(source)}`);
           await gh(["issue", "close", String(i.number), "-R", repo, "--reason", "completed"]);
           log("incident:resolved", { repo, issue: i.number, key });
         }
-        delete state[key];
+        if (!keepOpen) delete state[key];
       }
     } catch (e) {
       log("incident:repo-error", { repo, error: String(e) });
@@ -1036,7 +1057,7 @@ export async function syncIncidents(cfg: Config, results: { source: IncidentSour
   // Vorbei, während das Issue schon (von Hand) geschlossen war: beim nächsten Alarm wieder ein neues Issue
   for (const key of Object.keys(state)) {
     const source = sourceOfKey(key);
-    if (!active.has(key) && source && reachable.has(source)) delete state[key];
+    if (!active.has(key) && source && reachable.has(source) && !state[key].recovered) delete state[key];
   }
   for (const key of unmappedLogged) if (!active.has(key)) unmappedLogged.delete(key);
   mkdirSync(cfg.dataDir, { recursive: true });
@@ -1074,10 +1095,9 @@ async function lostJob(cfg: Config, repo: string, issue: Issue): Promise<boolean
 }
 
 async function tickRepo(cfg: Config, repo: string, containers: Container[], slots: { free: number }) {
-  const listed: Issue[] = JSON.parse(await gh(["issue", "list", "-R", repo, "--label", cfg.label, "--state", "open",
+  // Auch Issues mit "incident" oder "deploy-failed": Setzt der Mensch das Label "factory", übernimmt die Factory sie
+  const issues: Issue[] = JSON.parse(await gh(["issue", "list", "-R", repo, "--label", cfg.label, "--state", "open",
     "--json", "number,title,body,url,labels,comments", "--limit", "100"]));
-  // Alarme und Deploy-Fehler sind nie Aufgaben der Factory, auch wenn jemand das Label setzt
-  const issues = listed.filter(isFactoryWork);
   issues.sort((a, b) => a.number - b.number); // älteste zuerst
   const openNumbers = new Set(issues.map((i) => i.number));
 

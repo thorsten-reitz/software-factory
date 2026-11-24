@@ -96,6 +96,7 @@ type ProjectText = {
   incidentTitle: (a: IncidentInfo) => string;
   incidentBody: (a: IncidentInfo) => string;
   incidentResolved: (source: IncidentInfo["source"]) => string;
+  incidentResolvedOpen: (source: IncidentInfo["source"]) => string;
   incidentDuplicate: (keep: number) => string;
   claimed: string;
   paused: (when: string, n: number, max: number) => string;
@@ -118,10 +119,12 @@ export const TEXT: Record<Lang, ProjectText> = {
     incidentBody: (a) => incidentBody(a, {
       heading: "Alarm von", project: "Projekt", unknown: "nicht zugeordnet (incidents.projects in der Factory-Config)",
       since: "Seit", open: "In der Quelle ansehen",
-      footer: "Dieses Issue hat der Runner der Factory angelegt. Er kommentiert und schließt es, sobald der Alarm vorbei ist. " +
-        "Die Factory bearbeitet Incidents nie von selbst: Soll sie sich darum kümmern, leg ein eigenes Issue mit Label `factory` an und verweise auf dieses.",
+      footer: "Dieses Issue ist nicht an die Factory übergeben. Soll sie sich darum kümmern, füge das Label `factory` hinzu. " +
+        "Der Runner kommentiert und schließt es, sobald der Alarm vorbei ist (arbeitet die Factory daran, bleibt es offen).",
     }),
     incidentResolved: (source) => `### ✅ Alarm vorbei\n\n${SOURCE_NAME[source]} meldet den Alarm nicht mehr. Die Factory schließt das Issue.`,
+    incidentResolvedOpen: (source) =>
+      `### ✅ Alarm vorbei\n\n${SOURCE_NAME[source]} meldet den Alarm nicht mehr. Das Issue bleibt offen, weil die Factory daran arbeitet.`,
     incidentDuplicate: (keep) => `Doppelt zu #${keep}. Die Factory schließt dieses Issue, der Alarm wird dort verfolgt.`,
     claimed:"🏭 Die Factory hat das Issue übernommen und prüft es jetzt. Den Fortschritt siehst du am Status (Label bzw. Board).",
     paused: (when, n, max) =>
@@ -150,10 +153,12 @@ export const TEXT: Record<Lang, ProjectText> = {
     incidentBody: (a) => incidentBody(a, {
       heading: "Alert from", project: "Project", unknown: "not mapped (incidents.projects in the factory config)",
       since: "Since", open: "View in source",
-      footer: "The factory runner opened this issue. It comments and closes it as soon as the alert is over. " +
-        "The factory never works on incidents by itself: if it should take care of this, open a separate issue with the label `factory` that refers to this one.",
+      footer: "Not handed to the factory. Add the label `factory` if it should take care of it. " +
+        "The runner comments and closes this issue as soon as the alert is over (it stays open while the factory works on it).",
     }),
     incidentResolved: (source) => `### ✅ Alert over\n\n${SOURCE_NAME[source]} no longer reports the alert. The factory closes this issue.`,
+    incidentResolvedOpen: (source) =>
+      `### ✅ Alert over\n\n${SOURCE_NAME[source]} no longer reports the alert. The issue stays open because the factory is working on it.`,
     incidentDuplicate: (keep) => `Duplicate of #${keep}. The factory closes this issue, the alert is tracked there.`,
     claimed:"🏭 The factory has picked up this issue and is checking it now. You can follow the progress via the status (label or board).",
     paused: (when, n, max) =>

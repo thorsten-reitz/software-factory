@@ -207,7 +207,7 @@ Was der Runner tut:
 - Je Alarm genau ein offenes Issue mit Label `incident`. Hält der Alarm an, kommt kein zweites dazu. Ein Check zählt als Alarm, sobald healthchecks.io ihn auf **down** setzt (nach Ablauf der Karenzzeit).
 - Ist der Alarm vorbei, kommentiert er das Issue und schließt es. Ist healthchecks.io oder Grafana gerade nicht erreichbar, schließt er nichts.
 - Schließt du ein Issue, solange der Alarm noch läuft, öffnet er kein neues. Erst ein neuer Alarm nach der Erholung bekommt wieder ein Issue.
-- Issues mit `incident` oder `deploy-failed` (die öffnet die Pipeline bei einem fehlgeschlagenen Deploy) bearbeitet die Factory **nie**, auch nicht, wenn jemand das Label `factory` dazusetzt. Soll sie sich um einen Incident kümmern, leg ein eigenes Issue mit Label `factory` an und verweis darauf.
+- Issues mit `incident` oder `deploy-failed` (die öffnet die Pipeline bei einem fehlgeschlagenen Deploy) bekommen **nie automatisch** das Label `factory`. Ob die Factory sich darum kümmert, entscheidest du: Setz das Label `factory` von Hand, dann übernimmt sie das Issue wie jedes andere. Ist der Alarm vorbei, während sie daran arbeitet, kommentiert der Runner das nur und lässt das Issue offen; geschlossen wird es erst, wenn die Factory fertig ist (`factory:done`) oder du es schließt.
 
 ### Heartbeat der Factory
 

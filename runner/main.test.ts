@@ -477,7 +477,7 @@ test("factory-report: Rückfrage auf Deutsch (Standard), Englisch und für ander
 
 // ---------- Incident-Intake (healthchecks.io und Grafana simuliert, kein Netz) ----------
 
-import { fetchGrafanaAlerts, fetchHealthchecks, heartbeat, incidentIntake, isFactoryWork, projectForCheck, syncIncidents, type Alert } from "./main.ts";
+import { fetchGrafanaAlerts, fetchHealthchecks, heartbeat, incidentIntake, projectForCheck, syncIncidents, type Alert } from "./main.ts";
 
 const fetchCalls: { url: string; headers: Record<string, string> }[] = [];
 let hcResponse: any = { checks: [] };
@@ -498,25 +498,58 @@ const projects = { "meine-app": "a/app", shop: "a/shop", "shop-admin": "a/shop-a
 const icfg = (extra: Partial<Config> = {}) => cfg({ incidents: { enabled: true, projects, fallbackRepo: "a/factory" }, ...extra });
 const alert = (key: string, project = "meine-app"): Alert =>
   ({ key, source: key.startsWith("hc-") ? "healthchecks" : "grafana", project, title: `Alarm ${key}`, details: ["Status: down"] });
-const openIncident = (number: number, key: string, login = "alex") =>
-  ({ number, body: `<!-- software-factory:incident:${key} -->\nText`, author: { login }, createdAt: "2026-11-24T10:00:00Z" });
+const openIncident = (number: number, key: string, login = "alex", labels: string[] = ["incident"]) =>
+  ({ number, body: `<!-- software-factory:incident:${key} -->\nText`, author: { login }, createdAt: "2026-11-24T10:00:00Z", labels: labels.map((name) => ({ name })) });
 const ghCalls = (sub: string) => calls.filter((x) => x.cmd[0] === "gh" && x.cmd[1] === "issue" && x.cmd[2] === sub);
 const resetIncidents = () => { calls.length = 0; fetchCalls.length = 0; for (const k of Object.keys(incidentIssues)) delete incidentIssues[k]; };
 
-test("Never-Factory: Issues mit incident oder deploy-failed sind nie Aufgaben der Factory", async () => {
-  assert.equal(isFactoryWork({ labels: [{ name: "factory" }] }), true);
-  assert.equal(isFactoryWork({ labels: [{ name: "factory" }, { name: "incident" }] }), false);
-  assert.equal(isFactoryWork({ labels: [{ name: "deploy-failed" }, { name: "factory" }] }), false);
-  // Auch wenn jemand das Label factory setzt: tick startet keinen Lauf und setzt keinen Status
-  listIssues = JSON.stringify([{ ...issue([]), labels: [{ name: "factory" }, { name: "incident" }] }]);
-  try {
-    const dataDir = tmp();
-    calls.length = 0;
-    await tick(cfg({ dataDir, repos: ["a/b"], maxParallel: 2 }));
-    assert.ok(!existsSync(join(dataDir, "jobs", "a__b__7")));
-    assert.ok(!calls.some((x) => x.cmd[0] === "docker" && x.cmd[1] === "run"));
-    assert.ok(!calls.some((x) => x.cmd[1] === "issue" && x.cmd[2] === "edit"), "kein Status-Label");
-  } finally { listIssues = "[]"; }
+test("Übergabe: Setzt der Mensch factory an ein incident- oder deploy-failed-Issue, übernimmt die Factory", async () => {
+  for (const label of ["incident", "deploy-failed"]) {
+    listIssues = JSON.stringify([{ ...issue([]), labels: [{ name: "factory" }, { name: label }] }]);
+    try {
+      const dataDir = tmp();
+      calls.length = 0;
+      await tick(cfg({ dataDir, repos: ["a/b"], maxParallel: 2 }));
+      assert.ok(existsSync(join(dataDir, "jobs", "a__b__7")), label);
+      assert.ok(calls.some((x) => x.cmd[0] === "docker" && x.cmd[1] === "run"), label);
+    } finally { listIssues = "[]"; }
+  }
+});
+
+test("Kommentare des Intakes sind weder Factory-Status noch Antwort eines Menschen", () => {
+  const i = issue([
+    c("alex", "<!-- software-factory:question:build -->\nFrage?"),
+    c("alex", "<!-- software-factory:incident:resolved -->\nAlarm vorbei"),
+  ]);
+  assert.deepEqual(lastFactoryMarker(i as any), { status: "question", phase: "build" });
+  assert.equal(humanCommentsSinceFactory(cfg(), i as any).length, 0);
+  const answered = issue([c("alex", "<!-- software-factory:question:build -->\nFrage?"), c("alex", "Antwort"), c("alex", "<!-- software-factory:incident:resolved -->\nvorbei")]);
+  assert.equal(humanCommentsSinceFactory(cfg(), answered as any).length, 1, "Antwort vor dem Intake-Kommentar zählt weiter");
+});
+
+test("Erholung bei einem an die Factory übergebenen Issue: einmal kommentieren, offen lassen, Labels nicht anfassen", async () => {
+  resetIncidents();
+  const config = icfg();
+  incidentIssues["a/app"] = [openIncident(600, "hc-a1", "alex", ["incident", "factory", "factory:working"])];
+  const recovered = [{ source: "healthchecks" as const, alerts: [] }, { source: "grafana" as const, alerts: [] }];
+  await syncIncidents(config, recovered);
+  assert.equal(ghCalls("close").length, 0);
+  assert.equal(ghCalls("edit").length, 0);
+  assert.equal(ghCalls("comment").length, 1);
+  assert.ok(ghCalls("comment")[0].stdin.includes("bleibt offen"), ghCalls("comment")[0].stdin);
+  // Nächster Durchlauf: kein zweiter Kommentar
+  calls.length = 0;
+  await syncIncidents(config, recovered);
+  assert.equal(ghCalls("comment").length + ghCalls("close").length + ghCalls("create").length, 0);
+  // Die Factory ist fertig (factory:done): jetzt normal schließen
+  incidentIssues["a/app"] = [openIncident(600, "hc-a1", "alex", ["incident", "factory", "factory:done"])];
+  await syncIncidents(config, recovered);
+  assert.deepEqual(ghCalls("close").map((c) => c.cmd[3]), ["600"]);
+  // Issue zu, Alarm kommt wieder: neues Issue
+  resetIncidents();
+  await syncIncidents(config, recovered);
+  await syncIncidents(config, [{ source: "healthchecks", alerts: [alert("hc-a1")] }, { source: "grafana", alerts: [] }]);
+  assert.equal(ghCalls("create").length, 1);
 });
 
 test("Zuordnung: Tag des Checks, sonst längster Namensanfang, Grafana über Label projekt", async () => {
@@ -658,7 +691,7 @@ test("Englisches Projekt: Incident-Texte auf Englisch, Zugangsdaten entfernt", a
   const a = { ...alert("gf-e1", "ops"), details: ["Token ghp_0123456789abcdefghijABCDEF im Log"] };
   await syncIncidents(config, [{ source: "grafana", alerts: [a] }]);
   const body = ghCalls("create")[0].stdin;
-  assert.ok(body.includes("Alert from Grafana") && body.includes("never works on incidents by itself"), body);
+  assert.ok(body.includes("Alert from Grafana") && body.includes("Not handed to the factory. Add the label `factory`"), body);
   assert.ok(!body.includes("ghp_0123"));
   incidentIssues["en/ops"] = [openIncident(500, "gf-e1")];
   calls.length = 0;
