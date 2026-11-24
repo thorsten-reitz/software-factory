@@ -23,6 +23,16 @@ features/
     qa-report.md                   ERGEBNIS: Testlauf gegen die Akzeptanzkriterien (Factory)
 ```
 
+## Plattform-Specs
+
+`/init` legt neben den Produkt-Features die Plattform-Specs PROJ-1 bis PROJ-7 an (Typ `Plattform` in `features/INDEX.md`): Konventionen prüfen, CI, Health-Check, Deploy staging, Production-Freigabe, Backup, Observability. Sie laufen durch dieselben Phasen, mit drei Unterschieden:
+
+- **Prüfung:** Der Abschnitt „Voraussetzungen (Mensch)“ muss abgehakt sein (z. B. Infisical-Projekt, DNS, Server), sonst fragt die Factory nach.
+- **Bau:** Vorlagen aus [factory-pipelines](https://github.com/thorsten-reitz/factory-pipelines) statt eigener Pipelines. Änderungen an `.github/`, `.factory/delivery.json` und `deploy/` stehen eigens im PR-Text.
+- **Abnahme:** statt Browser-Test der CI-Lauf des PRs und die statischen Checks. Was erst nach dem Merge sichtbar ist (Deploy, Backup), steht im PR unter „Wird nach dem Merge geprüft“; das Ergebnis des Deploys kommentiert die Pipeline.
+
+Details: [conventions/README.md](../../conventions/README.md).
+
 ## Zuordnung zu den Factory-Phasen
 
 - **Prüfung** (eigener, kurzer Lauf, baut nichts)

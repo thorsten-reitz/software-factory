@@ -24,5 +24,11 @@ Gespeichert in: …
 ## E) Backend nötig?
 Nein / Ja, weil …
 
+## F) Betrieb
+- **Neue Abhängigkeiten → Health-Check:** keine / `<komponente>` (kritisch ja/nein)
+- **Neuer Zustand → `state`:** keiner / …
+- **Neue Secrets (nur Namen):** keine / `…`
+- **Feature-Flag:** keins / `<flag-name>`, in production zunächst aus
+
 ## Decision Log
 - **Entscheidung:** … | **Alternative:** … | **Abwägung:** … (YYYY-MM-DD)
