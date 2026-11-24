@@ -103,11 +103,11 @@ Then end the run.
 
 Platform specs (`**Typ:** Plattform` / `**Type:** Platform`) set up the project's operations: CI, health check, deploys, production approval, backups, observability. The conventions are in `/factory/conventions/README.md`; read it before the architecture step.
 
-- **Use the templates, do not invent pipelines.** CI/CD logic lives in the public repo `thorsten-reitz/factory-pipelines` at the version pinned in `.github/workflows/delivery.yml` (e.g. `@v0.2.0`). Take files from its `templates/` folder at exactly that version (`gh api -H "Accept: application/vnd.github.raw" "repos/thorsten-reitz/factory-pipelines/contents/templates/<file>?ref=<version>"`) and adapt only what the project needs. No deploy, backup or secret handling of your own in the project: no extra jobs in the caller workflow, no `secrets:`, no shell scripts that do what factory-pipelines does.
+- **Use the templates, do not invent pipelines.** CI/CD logic lives in the public repo `thorsten-reitz/factory-pipelines` at the version pinned in `.github/workflows/delivery.yml` (e.g. `@v0.3.0`). Take files from its `templates/` folder at exactly that version (`gh api -H "Accept: application/vnd.github.raw" "repos/thorsten-reitz/factory-pipelines/contents/templates/<file>?ref=<version>"`) and adapt only what the project needs. No deploy, backup or secret handling of your own in the project: no extra jobs in the caller workflow, no `secrets:`, no shell scripts that do what factory-pipelines does.
 - `.factory/delivery.json` must stay valid against the schema (check `delivery-config`). Add the platform checks the spec names to `.factory/setup.json` → `checks` (list in the conventions guide).
 - **Secrets:** never write a secret value anywhere. New secret names go into `docs/operations.md` (section "Secrets"); the human sets the values in Infisical.
 - Every PR that changes `.github/`, `.factory/delivery.json` or `deploy/` lists those changes in the PR body (item 8 above), platform spec or not.
-- The job container has no Docker daemon: `docker compose config`, `helm lint`, `kubeconform`, `actionlint`, `hadolint` and `check-jsonschema` work, running containers does not. The test environment with real services is the CI run of the PR.
+- The job container has no Docker daemon: `docker compose config`, `yq`, `actionlint`, `hadolint` and `check-jsonschema` work, running containers does not. The test environment with real services is the CI run of the PR.
 
 **Return from acceptance:** if the history contains an acceptance comment with findings (rework), fix exactly those findings on the same branch, verify again (`verifying`), push, update the PR body and report `built` again.
 

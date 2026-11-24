@@ -13,6 +13,8 @@
 - [ ] Offline-Kopie von `RESTIC_PASSWORD` abgelegt (Passwortmanager oder ausgedruckt) und der Ort, nicht der Schlüssel, in `docs/operations.md` eingetragen
 <!-- nur wenn: watchdog healthchecks -->
 - [ ] healthchecks.io-Checks für Backup und Restore-Test je Umgebung angelegt, Ping-URLs als `HC_PING_URL_BACKUP` und `HC_PING_URL_RESTORE_TEST` in Infisical
+<!-- nur wenn: watchdog healthchecks, tier k3s -->
+- [ ] healthchecks.io-Check für Restores auf Abruf je Umgebung, Ping-URL als `HC_PING_URL_RESTORE` in Infisical (der Restore-Job im Cluster meldet dorthin, ob der Restore gelungen ist)
 
 ## User Stories
 - Als Projektverantwortliche:r möchte ich, dass alle Daten des Projekts täglich verschlüsselt außerhalb des Hosts gesichert werden, damit ein Ausfall oder Fehler nicht zu Datenverlust führt.

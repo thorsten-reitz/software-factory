@@ -13,6 +13,8 @@
 - [ ] Offline copy of `RESTIC_PASSWORD` stored (password manager or printed) and its location, not the key, entered in `docs/operations.md`
 <!-- only if: watchdog healthchecks -->
 - [ ] healthchecks.io checks for backup and restore test per environment, ping URLs as `HC_PING_URL_BACKUP` and `HC_PING_URL_RESTORE_TEST` in Infisical
+<!-- only if: watchdog healthchecks, tier k3s -->
+- [ ] healthchecks.io check for on-demand restores per environment, ping URL as `HC_PING_URL_RESTORE` in Infisical (the restore job in the cluster reports there whether the restore succeeded)
 
 ## User Stories
 - As the project owner I want all project data backed up daily, encrypted and off the host so that an outage or mistake does not lose data.

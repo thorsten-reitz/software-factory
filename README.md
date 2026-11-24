@@ -35,7 +35,7 @@ Eigener Docker-Container pro Issue
 ```
 
 - **Runner** (`runner/`): kleiner Dienst auf dem Server. Holt Issues, startet Container, setzt Labels und Board-Status. Schreibt selbst keinen Code.
-- **Job-Image** (`image/`): Claude Code, GitHub CLI, git, Node, Python (uv) und Chromium (für Tests und Screenshots), dazu die Werkzeuge für die Plattform-Checks: `actionlint`, `check-jsonschema`, `hadolint`, `helm`, `kubeconform` und die Docker-CLI mit Compose-Plugin (nur für `docker compose config`, ohne Daemon).
+- **Job-Image** (`image/`): Claude Code, GitHub CLI, git, Node, Python (uv) und Chromium (für Tests und Screenshots), dazu die Werkzeuge für die Plattform-Checks: `actionlint`, `check-jsonschema`, `hadolint`, `yq` und die Docker-CLI mit Compose-Plugin (nur für `docker compose config`, ohne Daemon).
 - **Playbook** (`playbooks/factory.md`): die festen Regeln für jeden Lauf. Stages melden, bei Unklarheit fragen statt raten, Pflicht-Checks, nie selbst mergen.
 - **Workflow** (`workflows/starter-kit/`): wie entwickelt wird. Standard ist der Workflow aus dem [AI Coding Starter Kit](https://github.com/AlexPEClub/ai-coding-starter-kit): `architecture → build → qa` auf Basis deiner Spec, mit getrennten Dateien pro Feature (`spec.md`, `design.md`, `qa-report.md`). Austauschbar, siehe [workflow.md](workflows/starter-kit/workflow.md).
 - **Stack-Packs** (`workflows/starter-kit/stacks/`): Regeln für einen bestimmten Stack (z. B. `nextjs`, `postgres`, `supabase`). Welche gelten, steht in `docs/stack.md` des Projekts. Die Factory ist stack-unabhängig.

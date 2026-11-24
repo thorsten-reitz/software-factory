@@ -23,7 +23,7 @@ Server bereitstellen: {{PROVISIONING}} (Vorlage `factory-pipelines/templates/clo
 
 - **Stufe:** {{TIER}}
 - **Begründung:** _Kriterien aus dem Leitfaden: Anzahl Dienste und Hosts, Downtime beim Deploy, Erfahrung, Kosten_
-- **Zielstufe später:** _nur wenn abweichend, z. B. „k3s, sobald factory-pipelines v0.3 verfügbar ist“_
+- **Zielstufe später:** _nur wenn abweichend, z. B. „kamal, sobald Deploys ohne Unterbrechung nötig sind“_
 
 **Kapazität des Factory-Servers** (nur wenn eine Umgebung dort läuft):
 
@@ -55,7 +55,7 @@ Server bereitstellen: {{PROVISIONING}} (Vorlage `factory-pipelines/templates/clo
 <!-- nur wenn: staging-Daten seed -->
 - **Seed:** Dienst `seed` in `deploy/compose.yml` (Profil `seed`, idempotent), läuft bei jedem staging-Deploy nach den Migrationen. Nie personenbezogene Daten.
 <!-- nur wenn: staging-Daten anonymized-copy -->
-- **Anonymisierung:** `deploy/anonymize.sql`, wird bei jeder Schemaänderung mitgepflegt. In factory-pipelines v0.2.0 noch nicht umgesetzt. DSGVO: _Begründung, warum eine anonymisierte Kopie nötig und zulässig ist_
+- **Anonymisierung:** `deploy/anonymize.sql`, wird bei jeder Schemaänderung mitgepflegt. In factory-pipelines v0.3.0 noch nicht umgesetzt. DSGVO: _Begründung, warum eine anonymisierte Kopie nötig und zulässig ist_
 
 ## 4. Health
 
@@ -89,10 +89,15 @@ Infisical Cloud EU, Projekt `{{PROJECT}}`, Umgebungen `staging` und `production`
 
 | Name | staging | production | Zweck |
 |---|---|---|---|
+<!-- nur wenn: tier compose oder kamal -->
 | `DEPLOY_HOST`, `DEPLOY_SSH_KEY`, `DEPLOY_HOST_KEY` | ✓ | ✓ | Deploy per Forced Command |
+<!-- nur wenn: tier k3s und privates Image -->
+| `GHCR_PULL_TOKEN` | ✓ | ✓ | Image aus GHCR laden (`read:packages`) |
 | `HEALTH_TOKEN` | ✓ | ✓ | Zugang zu `/health` |
 | `RESTIC_REPOSITORY`, `RESTIC_PASSWORD`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | ✓ | ✓ | Backup |
 | `HC_PING_URL`, `HC_PING_URL_BACKUP`, `HC_PING_URL_RESTORE_TEST` | ✓ | ✓ | Watchdog |
+<!-- nur wenn: tier k3s -->
+| `HC_PING_URL_RESTORE` | ✓ | ✓ | Ergebnis eines Restores auf Abruf |
 | _`DATABASE_URL`, `POSTGRES_PASSWORD`_ | ✓ | ✓ | _App_ |
 
 **Abhängigkeit von Infisical:** Laufende Container arbeiten weiter, wenn Infisical nicht erreichbar ist. Deploys und der Neustart eines Hosts brauchen Infisical.

@@ -17,13 +17,12 @@ RUN apt-get update -qq \
 RUN npm install -g playwright@1.65.0 && npm cache clean --force
 ENV NODE_PATH=/usr/lib/node_modules
 
-# Werkzeuge für die Plattform-Checks (conventions/README.md): Workflows, Dockerfiles, Compose- und
-# Kubernetes-Dateien statisch prüfen. Docker-CLI mit Compose-Plugin nur für "docker compose config",
+# Werkzeuge für die Plattform-Checks (conventions/README.md): Workflows, Dockerfiles, Compose-Dateien
+# und deploy/k3s/values.yaml statisch prüfen. Docker-CLI mit Compose-Plugin nur für "docker compose config",
 # im Job gibt es keinen Daemon und keinen Docker-Socket. Versionen fest, Updates bewusst per PR.
 ARG ACTIONLINT_VERSION=1.7.7
 ARG HADOLINT_VERSION=2.12.0
-ARG HELM_VERSION=3.17.3
-ARG KUBECONFORM_VERSION=0.7.0
+ARG YQ_VERSION=4.45.1
 ARG DOCKER_CLI_VERSION=28.1.1
 ARG COMPOSE_VERSION=2.35.1
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -36,16 +35,14 @@ RUN case "$(dpkg --print-architecture)" in \
     | tar -xz -C /usr/local/bin actionlint \
  && curl -fsSL -o /usr/local/bin/hadolint "https://github.com/hadolint/hadolint/releases/download/v${HADOLINT_VERSION}/hadolint-Linux-${HADOLINT_ARCH}" \
  && chmod 0755 /usr/local/bin/hadolint \
- && curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-${GOARCH}.tar.gz" \
-    | tar -xz -C /usr/local/bin --strip-components=1 "linux-${GOARCH}/helm" \
- && curl -fsSL "https://github.com/yannh/kubeconform/releases/download/v${KUBECONFORM_VERSION}/kubeconform-linux-${GOARCH}.tar.gz" \
-    | tar -xz -C /usr/local/bin kubeconform \
+ && curl -fsSL -o /usr/local/bin/yq "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_${GOARCH}" \
+ && chmod 0755 /usr/local/bin/yq \
  && curl -fsSL "https://download.docker.com/linux/static/stable/${UNAME_M}/docker-${DOCKER_CLI_VERSION}.tgz" \
     | tar -xz -C /usr/local/bin --strip-components=1 docker/docker \
  && mkdir -p /usr/local/lib/docker/cli-plugins \
  && curl -fsSL -o /usr/local/lib/docker/cli-plugins/docker-compose "https://github.com/docker/compose/releases/download/v${COMPOSE_VERSION}/docker-compose-linux-${UNAME_M}" \
  && chmod 0755 /usr/local/lib/docker/cli-plugins/docker-compose \
- && actionlint --version && hadolint --version && helm version --short && kubeconform -v \
+ && actionlint --version && hadolint --version && yq --version \
  && docker --version && docker compose version
 SHELL ["/bin/sh", "-c"]
 

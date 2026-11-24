@@ -10,12 +10,18 @@
 ## Voraussetzungen (Mensch)
 - [ ] GitHub-Umgebung `production` mit dir als Required Reviewer, Deployments nur vom Branch `main` (legt `scripts/add-repo.sh` der Factory an)
 - [ ] Maschinen-Identität für GitHub mit OIDC Auth, Subject `repo:{{OWNER}}/{{REPO}}:environment:production` (bei Repos ab dem 15. Juli 2026 mit IDs, siehe PROJ-4), Lesezugriff nur auf `production`
-<!-- nur wenn: production auf eigener VM -->
+<!-- nur wenn: production auf eigener VM, tier compose oder kamal -->
 - [ ] production-Host ({{PRODUCTION_HOST}}) per cloud-init aus `factory-pipelines/templates/cloud-init/compose-host.yaml` angelegt
 <!-- nur wenn: production auf dem Factory-Server -->
 - [ ] Factory-Server als Deploy-Host eingerichtet und Kapazität laut `docs/operations.md` geprüft
+<!-- nur wenn: tier compose oder kamal -->
 - [ ] Host-Identität (Universal Auth) mit Lesezugriff nur auf `production`, Client-Secret nach dem ersten Start erneuert
+<!-- nur wenn: tier k3s -->
+- [ ] k3s-Server für production ({{PRODUCTION_HOST}}) mit `factory-pipelines/templates/cloud-init/k3s-host.yaml` ({{PIPELINES_VERSION}}) als User-Data angelegt, mit Deploy-Key nur mit Lesezugriff (bei privatem Repo) und Maschinen-Identität (Universal Auth) mit Lesezugriff nur auf `production`; beide nach dem Bootstrap erneuert
+<!-- nur wenn: tier compose oder kamal -->
 - [ ] Secrets in Infisical `production`: `DEPLOY_HOST`, `DEPLOY_SSH_KEY`, `DEPLOY_HOST_KEY`, `HEALTH_TOKEN` und alle App-Secrets aus `docs/operations.md`
+<!-- nur wenn: tier k3s -->
+- [ ] Secrets in Infisical `production`: `HEALTH_TOKEN`, bei privatem Image `GHCR_PULL_TOKEN` (Token mit `read:packages`), und alle App-Secrets aus `docs/operations.md`
 <!-- nur wenn: backup an -->
 - [ ] Backup-Secrets in Infisical `production` (`RESTIC_REPOSITORY`, `RESTIC_PASSWORD`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`), weil vor jedem Produktions-Deploy ein Backup läuft
 - [ ] DNS: `{{PRODUCTION_DOMAIN}}` zeigt auf den production-Host
@@ -29,7 +35,10 @@
 - Monitoring und Watchdog (PROJ-7)
 
 ## Akzeptanzkriterien
+<!-- nur wenn: tier compose oder kamal -->
 - [ ] AK-1: Angenommen das Repo, dann enthält `.factory/delivery.json` unter `environments.production` `port: {{PRODUCTION_PORT}}`, `domain: "{{PRODUCTION_DOMAIN}}"` und `approval: true`, und der Check `delivery-config` ist grün.
+<!-- nur wenn: tier k3s -->
+- [ ] AK-1: Angenommen das Repo, dann enthält `.factory/delivery.json` unter `environments.production` `domain: "{{PRODUCTION_DOMAIN}}"` (ohne `port`) und `approval: true`, und der Check `delivery-config` ist grün.
 - [ ] AK-2: Angenommen der Aufruf-Workflow `.github/workflows/delivery.yml`, dann enthält er nur den Aufruf von `factory-pipelines` in Version {{PIPELINES_VERSION}}, keine eigenen Jobs und keine `secrets:`.
 - [ ] AK-3: Angenommen der staging-Deploy nach einem Merge ist grün, dann wartet der Job „Deploy production“ auf die Freigabe an der Umgebung `production` und deployt ohne Freigabe nicht. _(nach dem Merge)_
 - [ ] AK-4: Angenommen die Freigabe ist erteilt, dann wird genau der Digest ausgerollt, der in staging lief, und der Kommentar der Pipeline nennt Umgebung, Digest und Health-Ergebnis. _(nach dem Merge)_

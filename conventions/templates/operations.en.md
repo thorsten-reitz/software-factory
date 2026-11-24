@@ -23,7 +23,7 @@ Server provisioning: {{PROVISIONING}} (template `factory-pipelines/templates/clo
 
 - **Tier:** {{TIER}}
 - **Reason:** _criteria from the guide: number of services and hosts, downtime during deploys, experience, cost_
-- **Target tier later:** _only if different, e.g. "k3s, once factory-pipelines v0.3 is available"_
+- **Target tier later:** _only if different, e.g. "kamal, once deploys without interruption are needed"_
 
 **Capacity of the factory server** (only if an environment runs there):
 
@@ -55,7 +55,7 @@ Server provisioning: {{PROVISIONING}} (template `factory-pipelines/templates/clo
 <!-- only if: staging data seed -->
 - **Seed:** service `seed` in `deploy/compose.yml` (profile `seed`, idempotent), runs on every staging deploy after the migrations. Never personal data.
 <!-- only if: staging data anonymized-copy -->
-- **Anonymization:** `deploy/anonymize.sql`, updated with every schema change. Not implemented yet in factory-pipelines v0.2.0. GDPR: _why an anonymized copy is needed and permitted_
+- **Anonymization:** `deploy/anonymize.sql`, updated with every schema change. Not implemented yet in factory-pipelines v0.3.0. GDPR: _why an anonymized copy is needed and permitted_
 
 ## 4. Health
 
@@ -89,10 +89,15 @@ Infisical Cloud EU, project `{{PROJECT}}`, environments `staging` and `productio
 
 | Name | staging | production | Purpose |
 |---|---|---|---|
+<!-- only if: tier compose or kamal -->
 | `DEPLOY_HOST`, `DEPLOY_SSH_KEY`, `DEPLOY_HOST_KEY` | ✓ | ✓ | deploy via forced command |
+<!-- only if: tier k3s and private image -->
+| `GHCR_PULL_TOKEN` | ✓ | ✓ | pull the image from GHCR (`read:packages`) |
 | `HEALTH_TOKEN` | ✓ | ✓ | access to `/health` |
 | `RESTIC_REPOSITORY`, `RESTIC_PASSWORD`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | ✓ | ✓ | backup |
 | `HC_PING_URL`, `HC_PING_URL_BACKUP`, `HC_PING_URL_RESTORE_TEST` | ✓ | ✓ | watchdog |
+<!-- only if: tier k3s -->
+| `HC_PING_URL_RESTORE` | ✓ | ✓ | result of an on-demand restore |
 | _`DATABASE_URL`, `POSTGRES_PASSWORD`_ | ✓ | ✓ | _app_ |
 
 **Dependency on Infisical:** running containers keep working when Infisical is unreachable. Deploys and restarting a host need Infisical.
