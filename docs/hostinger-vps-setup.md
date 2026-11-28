@@ -224,6 +224,14 @@ cd software-factory
 ./scripts/install-local-skills.sh
 ```
 
+Unter **Windows** führst du das Skript in Git Bash aus. Aus PowerShell heraus geht es so, denn `bash` allein kennt PowerShell meist nicht:
+
+```powershell
+& "C:\Program Files\Git\bin\bash.exe" ./scripts/install-local-skills.sh
+```
+
+Das Skript legt unter Windows Verzeichnis-Junctions statt symbolischer Links an. Dafür brauchst du weder Admin-Rechte noch den Entwicklermodus. Vorhandene, nicht verknüpfte Skills sichert es nach `~/.claude/skills-backup`.
+
 Danach hast du in jedem Projekt diese Befehle in Claude Code (eine laufende Claude-Code-Sitzung vorher neu starten):
 
 - `/init`: richtet ein Projekt ein (Produktbeschreibung, Stack, Design, Feature-Liste)
