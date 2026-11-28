@@ -79,12 +79,12 @@ Mehr dazu: [Authentication](https://code.claude.com/docs/en/authentication) und 
 ## 5. GitHub anmelden
 
 ```bash
-gh auth login -s project
+gh auth login -s project,workflow
 ```
 
 Wähle **GitHub.com**, **HTTPS** und die Anmeldung über den Browser. Du bekommst einen Code angezeigt, den du auf deinem Rechner unter github.com/login/device eingibst.
 
-`-s project` gibt der Factory zusätzlich das Recht, dein Kanban-Board (GitHub Projects) zu bearbeiten. Ohne diese Berechtigung kann sie die Karten nicht verschieben.
+`-s project` gibt der Factory zusätzlich das Recht, dein Kanban-Board (GitHub Projects) zu bearbeiten. Ohne diese Berechtigung kann sie die Karten nicht verschieben. `workflow` braucht sie, um Pipeline-Dateien (`.github/workflows/`) zu pushen, etwa für die Plattform-Specs. Ein bestehender Login bekommt beides nachträglich mit `gh auth refresh -h github.com -s project,workflow`.
 
 ## 6. Die Factory starten
 
@@ -271,6 +271,17 @@ cd /opt/software-factory
 Führ danach im Projekt auf deinem Rechner ebenfalls `/init` aus, damit die Factory Stack und Prüfbefehle kennt.
 
 Für jedes weitere Projekt wiederholst du einfach einen der beiden Wege. Alle Repos landen auf demselben Board; einen Neustart der Factory brauchst du nicht.
+
+### Betrieb auf dem Factory-Server (staging bzw. production hier)
+
+Läuft eine Umgebung des Projekts auf dem Factory-Server (Stufe `compose` oder `kamal`), richtet ein Skript alles Nötige ein: Repo anbinden, Host-Skripte von [factory-pipelines](https://github.com/thorsten-reitz/factory-pipelines), Infisical-CLI, die Host-Identität für Infisical (verschlüsselt mit `systemd-creds`), Deploy-Schlüssel und die Zuordnung für den Incident-Intake:
+
+```bash
+cd /opt/software-factory
+./scripts/enable-operations.sh --repo dein-github-name/dein-repo
+```
+
+Vorher legst du in Infisical die Maschinen-Identität des Servers an (Universal Auth, Lesezugriff auf die Umgebungen, die hier laufen); das Skript fragt Client-ID und -Secret ab. Am Ende gibt es `DEPLOY_HOST`, `DEPLOY_HOST_KEY` und beim ersten Mal den privaten `DEPLOY_SSH_KEY` aus: diese Werte trägst du in Infisical in beide Umgebungen ein. Für jedes weitere Projekt auf diesem Server reicht derselbe Aufruf mit dem anderen Repo; Schlüssel und Identität bleiben.
 
 ## 9. Die erste Aufgabe übergeben
 
